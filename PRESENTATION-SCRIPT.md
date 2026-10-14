@@ -6,9 +6,9 @@
 
 **Directions in italics are not spoken.**
 
-## Opening — “The next agent could be ours” (about 2½ minutes)
+## Opening — “Because you are the risk” (about 2½ minutes)
 
-*Start on the introduction. Look at the audience before looking at the screen.*
+*Start on the cover, “You are the Governance Layer.” Look at the audience before looking at the screen. Click “Begin the talk” to show the introduction.*
 
 AI safety conversations have a habit of getting very dramatic, very quickly.
 
@@ -388,7 +388,7 @@ Because the next agent could be ours.
 
 And if it is, the consequences could be somebody else’s.
 
-*Pause. End there.*
+*Pause. Advance to the “Thank you” cover. Leave the QR code for chienda.com/speaking on screen.*
 
 ---
 

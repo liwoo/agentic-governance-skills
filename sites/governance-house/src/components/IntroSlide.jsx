@@ -17,7 +17,7 @@ function FlowLink({ branches = false }) {
   </svg>;
 }
 
-export default function IntroSlide({ onEnter, onRoom }) {
+export default function IntroSlide({ onEnter, onRoom, onBack }) {
   const playback = usePlayback("introduction", beats.length);
   const heading = useRef();
   useEffect(() => {
@@ -27,7 +27,7 @@ export default function IntroSlide({ onEnter, onRoom }) {
   const phase = playback.phase;
   return <section className={`intro-slide intro-phase-${phase} ${playback.playing ? "is-playing" : "is-paused"}`} aria-labelledby="intro-title">
     <div className="intro-heading">
-      <div><p className="intro-eyebrow">Agentic AI / shared responsibility</p><h1 id="intro-title" ref={heading} tabIndex={-1}>The next agent<br />could be <em>ours.</em></h1><p className="intro-subtitle">Governance must reach beyond frontier labs.</p></div>
+      <div><p className="intro-eyebrow">Agentic AI / shared responsibility</p><h1 id="intro-title" className="intro-risk-title" ref={heading} tabIndex={-1}>Because you are the <em>risk</em></h1><p className="intro-subtitle">Governance must reach beyond frontier labs.</p></div>
       <InfoTip label="The case for governance in development"><p>Regulation needs to keep pace with agentic AI. Oversight of frontier models is one part of the task: developers also choose the tools, data, permissions, and workflows through which those models act.</p><p>As reusable models, APIs, and frameworks make agent building more accessible, harm can also arise from the systems built by teams like ours. This is the argument illustrated here, not a claim that most harm comes from any one group.</p><p>NIST places risk management across design, development, use, and evaluation. OECD’s work on agentic systems examines their adoption and governance within organisations. These six safeguards support that work; they do not replace wider governance or applicable regulation.</p><ul className="governance-sources"><li><a href="https://www.nist.gov/itl/ai-risk-management-framework" target="_blank" rel="noreferrer"><span>Voluntary framework</span>NIST · AI Risk Management Framework ↗</a></li><li><a href="https://www.oecd.org/en/publications/agentic-ai-in-organisations_1257a26f-en.html" target="_blank" rel="noreferrer"><span>Research · 2026</span>OECD · Agentic AI in organisations ↗</a></li></ul></InfoTip>
     </div>
 
@@ -66,6 +66,7 @@ export default function IntroSlide({ onEnter, onRoom }) {
       <button className="intro-enter" type="button" onClick={onEnter}>Explore the six safeguards <span aria-hidden="true">→</span></button>
     </div>
     <div className="intro-playback" aria-label="Introduction playback">
+      <button className="intro-back-cover" type="button" onClick={onBack}>← Cover</button>
       <button className="intro-play" type="button" onClick={playback.toggle} aria-label={playback.finished ? "Replay introduction" : playback.playing ? "Pause introduction" : "Play introduction"}>{playback.finished ? "↺" : playback.playing ? "Ⅱ" : "▶"}</button>
       <div>{beats.map((label, index) => <button type="button" key={label} onClick={() => playback.seek(index)} aria-label={`Introduction step ${index + 1}: ${label}`} aria-current={phase === index ? "step" : undefined}><span>{String(index + 1).padStart(2, "0")}</span>{label}</button>)}</div>
     </div>

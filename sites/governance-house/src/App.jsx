@@ -4,6 +4,7 @@ import { rooms } from "./data/rooms.js";
 import GovernancePanel, { PrincipleChips } from "./components/GovernancePanel.jsx";
 import WallReader from "./components/WallReader.jsx";
 import IntroSlide from "./components/IntroSlide.jsx";
+import CoverSlide from "./components/CoverSlide.jsx";
 import SafeguardConnections from "./components/SafeguardConnections.jsx";
 
 const RoomCanvas = lazy(() => import("./components/RoomCanvas.jsx"));
@@ -53,7 +54,8 @@ function LoadingRoom() {
 }
 
 function App() {
-  const [showIntro, setShowIntro] = useState(true);
+  const [page, setPage] = useState("cover");
+  const showIntro = page === "intro";
   const [activeIndex, setActiveIndex] = useState(0);
   const [focus, setFocus] = useState("overview");
   const [selectedObject, setSelectedObject] = useState(null);
@@ -61,17 +63,27 @@ function App() {
   const [selectedPrinciple, setSelectedPrinciple] = useState(null);
   const [progress, setProgress] = useState(readProgress);
   const room = rooms[activeIndex];
-  const playback = usePlayback(room.id, room.story.steps.length, !showIntro && focus === "overview");
+  const playback = usePlayback(room.id, room.story.steps.length, page === "room" && focus === "overview");
   const beat = room.story.steps[playback.phase];
   const selectedDetail = selectedObject ? room.objects[selectedObject] : null;
   const completed = progress[room.id] || [];
 
   useEffect(() => {
-    if (!showIntro) document.getElementById("room-title")?.focus({ preventScroll: true });
-  }, [showIntro]);
+    if (page === "room") document.getElementById("room-title")?.focus({ preventScroll: true });
+  }, [page]);
 
   function openIntro() {
-    setShowIntro(true);
+    setPage("intro");
+    window.scrollTo(0, 0);
+  }
+
+  function openCover() {
+    setPage("cover");
+    window.scrollTo(0, 0);
+  }
+
+  function openClosing() {
+    setPage("closing");
     window.scrollTo(0, 0);
   }
 
@@ -79,7 +91,7 @@ function App() {
     if (nextFocus !== "overview" && playback.playing) playback.toggle();
     if (showIntro && nextFocus === "overview" && !playback.reducedMotion) playback.replay();
     startTransition(() => {
-      setShowIntro(false);
+      setPage("room");
       setActiveIndex((index + rooms.length) % rooms.length);
       setFocus(nextFocus);
       if (nextFocus !== "overview") setInspectorView("governance");
@@ -127,6 +139,14 @@ function App() {
     });
   }
 
+  if (page === "cover") {
+    return <div className="app-shell cover-shell"><CoverSlide onEnter={openIntro} /></div>;
+  }
+
+  if (page === "closing") {
+    return <div className="app-shell cover-shell"><CoverSlide closing onBack={() => chooseRoom(rooms.length - 1)} /></div>;
+  }
+
   return (
     <div className="app-shell" style={{ "--accent": showIntro ? "#d8b783" : room.accent, "--secondary": showIntro ? "#86b6a0" : room.secondary, "--room-progress": `${((activeIndex + 1) / rooms.length) * 100}%` }}>
       <header className="app-header">
@@ -154,9 +174,10 @@ function App() {
               <strong>{item.short}</strong>
             </button>
           ))}
+          <button type="button" onClick={openClosing}><span>End</span><strong>Thank you</strong></button>
         </nav>
 
-        {showIntro ? <IntroSlide onEnter={() => { setInspectorView("story"); chooseRoom(0); }} onRoom={(index) => { setInspectorView("story"); chooseRoom(index); }} /> : <>
+        {showIntro ? <IntroSlide onBack={openCover} onEnter={() => { setInspectorView("story"); chooseRoom(0); }} onRoom={(index) => { setInspectorView("story"); chooseRoom(index); }} /> : <>
         <section className="room-stage" data-focus={focus} aria-labelledby="room-title">
           <div className="room-title-block">
             <p>{room.principle}</p>
@@ -209,7 +230,7 @@ function App() {
           <div className="room-switcher">
             <button type="button" onClick={() => activeIndex === 0 ? openIntro() : chooseRoom(activeIndex - 1)} aria-label="Previous room">←</button>
             <div><span>{room.number}</span><i /></div>
-            <button type="button" onClick={() => chooseRoom(activeIndex + 1)} aria-label="Next room">→</button>
+            <button type="button" onClick={() => activeIndex === rooms.length - 1 ? openClosing() : chooseRoom(activeIndex + 1)} aria-label={activeIndex === rooms.length - 1 ? "Next: Thank you" : "Next room"}>→</button>
           </div>
         </section>
 
