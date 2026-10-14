@@ -1,7 +1,9 @@
 # The Governance House — 20-minute Microsoft Foundry talk track
 
-**Tone:** conversational, curious, practical, lightly funny.  
-**Running example:** a fictional retailer called Northstar, building a customer-support and refunds agent in Microsoft Foundry.  
+**Tone:** conversational, curious, practical, lightly funny.
+
+**Running example:** a fictional retailer called Northstar, building a customer-support and refunds agent in Microsoft Foundry.
+
 **Directions in italics are not spoken.**
 
 ## Opening — “The next agent could be ours” (about 2½ minutes)
