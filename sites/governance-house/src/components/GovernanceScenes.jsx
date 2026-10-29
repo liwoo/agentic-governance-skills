@@ -172,8 +172,8 @@ function Uncertainty({ timeline, phase, onSelect }) {
     <mesh position={[-0.5, 1.95, -0.2]}><sphereGeometry args={[0.15, 20, 16]} /><meshStandardMaterial color={phase === 4 ? GREEN : RED} emissive={phase === 4 ? GREEN : RED} emissiveIntensity={1.2} /></mesh>
     <Plinth at={[2.85, 0.55, -1.7]} size={[1, 1.1, 0.6]} color={phase >= 3 ? "#5c9d80" : INK} />
     <Plinth at={[2.85, 0.55, 2.25]} size={[1, 1.1, 0.6]} />
-    <Label at={[2.85, 1.6, -1.7]} tone={phase >= 3 ? "good" : "neutral"}>ALEX · DESIGN {phase >= 3 ? "✓" : "?"}</Label>
-    <Label at={[2.85, 1.6, 2.25]}>ALEX · FINANCE {phase >= 3 ? "✕" : "?"}</Label>
+    <Label at={[2.85, 1.6, -1.7]} tone={phase >= 3 ? "good" : "neutral"}>SJO · COSTA RICA {phase >= 3 ? "✓" : "?"}</Label>
+    <Label at={[2.85, 1.6, 2.25]}>SJC · CALIFORNIA {phase >= 3 ? "✕" : "?"}</Label>
     <Label at={[-1.3, 2.7, 0.2]} tone={phase >= 3 ? "good" : phase === 1 ? "danger" : "neutral"}>{["TWO SAN JOSÉS. WHICH?", "HOLD · EVIDENCE MISSING", "ASK: SJO OR SJC?", "ANSWER: SJO · COSTA RICA", "✓ ROUTE CONFIRMED"][phase]}</Label>
     <Inspect at={[0.5, 0.55, 1.4]} label="ambiguous navigation table" onClick={() => onSelect("table")} />
     <Inspect at={[-1, 1.85, -0.4]} label="confidence instruments" onClick={() => onSelect("meters")} />
