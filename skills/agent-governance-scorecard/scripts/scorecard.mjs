@@ -3,6 +3,7 @@
 //
 //   scorecard.mjs discover [root]            index the codebase  → .governance-scorecard/discovery.json
 //   scorecard.mjs template [root]            report skeleton     → .governance-scorecard/report.json
+//   scorecard.mjs scope    <report.json>     after the profile is filled in: keep only the checks that apply
 //   scorecard.mjs validate <report.json>     check the report is complete and well-formed
 //   scorecard.mjs render   <report.json>     score it            → scorecard.json + scorecard.html
 //
@@ -14,7 +15,7 @@ import { basename, dirname, join, relative, resolve } from "node:path";
 import { checkIndex, loadCatalog } from "./lib/catalog.mjs";
 import { discover, summarize } from "./lib/discover.mjs";
 import { renderHtml } from "./lib/html.mjs";
-import { scoreReport, validateReport } from "./lib/report.mjs";
+import { relevance, SCHEMA_VERSION, scoreReport, validateProfile, validateReport } from "./lib/report.mjs";
 
 const OUT_DIR = ".governance-scorecard";
 
@@ -73,11 +74,16 @@ const commands = {
     if (existsSync(out) && !options.force) throw new UsageError(`${show(out)} already exists. Pass --force to overwrite.`);
     const catalog = loadCatalog();
     const skeleton = {
-      schemaVersion: 1,
+      schemaVersion: SCHEMA_VERSION,
       catalogVersion: catalog.catalogVersion,
       assessedAt: new Date().toISOString(),
       assessor: "",
       project: { name: basename(root), summary: "", languages: [], frameworks: [], commit: "" },
+      profile: {
+        traits: Object.fromEntries(
+          catalog.traits.map((t) => [t.id, { question: t.question, value: null, reason: "", evidence: [] }]),
+        ),
+      },
       agents: [{ name: "", entrypoint: "path/to/file.py:1", description: "" }],
       consequentialActions: [{ name: "", effect: "money | data | communication | access | code-execution | other", location: "path:line", note: "" }],
       checks: catalog.rooms.flatMap((room) =>
@@ -93,7 +99,49 @@ const commands = {
       notes: [],
     };
     await writeOut(out, `${JSON.stringify(skeleton, null, 2)}\n`);
-    console.log(`Report skeleton with ${skeleton.checks.length} checks → ${show(out)}`);
+    console.log(`Report skeleton → ${show(out)}`);
+    console.log("Next: answer profile.traits (what the agent does), then run `scope` to keep only the checks that apply.");
+  },
+
+  async scope({ positional }) {
+    const path = positional[0];
+    const report = await readReport(path);
+    const result = validateProfile(report);
+    printValidation(result);
+    if (result.errors.length) {
+      console.error(`\n✗ Fill in the profile first (${result.errors.length} problem(s)).`);
+      process.exitCode = 1;
+      return;
+    }
+    const catalog = loadCatalog();
+    const scope = relevance(report);
+    const label = (id) => catalog.traits.find((t) => t.id === id).label.toLowerCase();
+    const existing = new Map((report.checks ?? []).map((c) => [c.id, c]));
+    const kept = [];
+    const dropped = [];
+    for (const room of catalog.rooms) {
+      for (const check of room.checks) {
+        if (scope.checks.get(check.id).applies) {
+          kept.push(existing.get(check.id) ?? { id: check.id, status: null, confidence: "medium", finding: "", evidence: [], fix: { summary: "", steps: [], files: [] } });
+        } else if (existing.has(check.id)) {
+          dropped.push(check.id);
+        }
+      }
+    }
+    report.checks = kept;
+    await writeOut(resolve(path), `${JSON.stringify(report, null, 2)}\n`);
+
+    for (const room of catalog.rooms) {
+      const r = scope.rooms.get(room.id);
+      const applying = room.checks.filter((c) => scope.checks.get(c.id).applies);
+      if (!r.applies) {
+        console.log(`  ${room.short.padEnd(12)} not relevant (no ${r.because.map(label).join(" / ")})`);
+        continue;
+      }
+      const skipped = room.checks.filter((c) => !scope.checks.get(c.id).applies);
+      console.log(`  ${room.short.padEnd(12)} ${applying.length} of ${room.checks.length} checks${skipped.length ? `  (skips ${skipped.map((c) => c.id.split("/")[1]).join(", ")})` : ""}`);
+    }
+    console.log(`\n${kept.length} checks to assess${dropped.length ? `, ${dropped.length} removed as not relevant` : ""} → ${show(resolve(path))}`);
   },
 
   async validate({ positional, options }) {
@@ -153,7 +201,7 @@ const commands = {
 const { positional, options } = parseArgs(process.argv.slice(2));
 const command = positional.shift();
 if (!commands[command]) {
-  console.log(`Usage: scorecard.mjs <discover|template|validate|render> [path] [--out …] [--root …] [--link-base …] [--fail-under N]`);
+  console.log(`Usage: scorecard.mjs <discover|template|scope|validate|render> [path] [--out …] [--root …] [--link-base …] [--fail-under N]`);
   process.exit(command ? 1 : 0);
 }
 try {

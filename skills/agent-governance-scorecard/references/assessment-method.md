@@ -53,21 +53,31 @@ Each check in the room files has a `provable` value:
   at all. For example, the controlled-restart drill can't exist without a stop
   mechanism.
 
-## Applicability
+## Deciding what applies
 
-Work out the agent's consequence level from the map:
-- **Read-only:** answers and retrieval only.
-- **Internal write:** reversible changes inside the team's own systems.
-- **Consequential:** money, deletion, external communication, access changes,
-  code execution, or disclosure of personal data.
+Answer these traits before assessing any check. Rooms and checks declare which
+traits make them apply, and `scope` removes the rest. This is how the scorecard
+avoids marking an agent down for a control it has no use for.
 
-Every room applies to every agent that has tools. What changes is how strict you
-are:
-- A read-only agent still needs identity, a ledger of what it accessed, and a stop
-  path. Permission checks about approval binding can be `not_applicable` when
-  there is truly nothing consequential, and the `reason` says so.
-- Never mark a check `not_applicable` just because it's hard, or because
-  "the framework handles it" without evidence of that.
+| Trait | True when | Rooms and checks it switches on |
+|---|---|---|
+| `acts` | It writes to a database, file or queue, calls an API that changes something, or sends a message. Calling a model API on its own doesn't count. | Identity, Ledger, Shutdown |
+| `consequential` | An action moves money, deletes or overwrites records other people rely on, contacts people outside the system, changes access or permissions, runs generated code, or publishes something. Implies `acts`. | Permission, plus intent-before-execution, reconciliation and integrity in Ledger and Shutdown |
+| `unreviewed_consequential` | A consequential action takes effect before a person approves that specific action. False only when every consequential output lands as a draft or proposal that a person approves first. Implies `consequential`. | The approval mechanics: request binding, single-use consumption, authorization records, the bad-approval drill |
+| `model_decides` | Model output picks a target, amount, category, priority or route that is acted on or stored. | Uncertainty |
+| `ambiguous_targets` | It turns names, descriptions or phrases like "my last order" into a specific customer, record, recipient or file. | Targeted clarification and safe resumption |
+
+Reliability always applies.
+
+Rules for answering:
+- **Answer from the code, with evidence.** `true` needs at least one `path:line`. `false` needs a reason that says what you looked for ("No tool writes anywhere; every function under `tools/` is a GET").
+- **When unsure, answer `true`.** A wrong `false` silently removes checks; a wrong `true` only costs some extra assessment.
+- **A downstream review counts only if it gates the effect.** If the agent writes a draft that a person must approve before it reaches anyone, `unreviewed_consequential` is false. If the agent applies the change and a person can undo it later, it's true.
+- **Don't answer for the future.** "We'll add refunds next quarter" doesn't make `consequential` true today. The scorecard should be re-run when that ships.
+
+`validate` rejects a profile that contradicts itself (e.g. `consequential` true but `acts` false) or contradicts `consequentialActions` (e.g. a `money` action with `consequential` false).
+
+`not_applicable` on an individual check is still allowed for a case the profile can't express. Give a specific reason, and never use it because a check is hard or because "the framework handles it" without evidence.
 
 ## Writing findings and fixes
 

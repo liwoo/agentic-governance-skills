@@ -7,14 +7,16 @@ High-stakes decisions combine independent uncertainty signals. Below a calibrate
 
 **Risks it addresses:** A fluent answer conceals an unsupported guess; Self-reported confidence can be confidently wrong; Low thresholds permit unsafe autonomy.
 
+**Applies when:** `model_decides` (model makes decisions) is true.
+
 ## Checks
 
 Priority checks (★) carry double weight in the score.
 
 ### `uncertainty/decision-inventory` — Identify decisions that must not guess
 
-- **Action (what good looks like):** List consequential decision points, required evidence, ambiguity conditions, and the owner responsible for each hold or escalation policy.
-- **Verify (the behavioural test):** Remove a required field from every listed decision type. Each must reach an explicit hold or rejection path before execution.
+- **Action (what good looks like):** List the decisions where a wrong guess would be too costly. For each, note what evidence is required, what would make it unclear, and who owns the rule for pausing or escalating it.
+- **Verify (the behavioural test):** For each listed decision, take away a piece of information it needs. Every one should visibly pause or be turned away before it acts, rather than carrying on with a guess.
 - **Provable from:** `code`
 - **Evidence to look for:**
   - A list (code or doc) of consequential decisions with required evidence/fields and what happens when they are missing or ambiguous.
@@ -24,8 +26,8 @@ Priority checks (★) carry double weight in the score.
 
 ### ★ `uncertainty/uncertainty-gateway` — Put the uncertainty gate before execution
 
-- **Action (what good looks like):** Route consequential decisions through one enforced evaluation step, including retries and background jobs; prevent alternate tool paths from skipping it.
-- **Verify (the behavioural test):** Submit an ambiguous action through interactive and queued paths. Neither may execute while its decision state is unresolved.
+- **Action (what good looks like):** Send every serious decision through a single checkpoint that weighs how sure the agent is — including retries and background jobs — and make sure no other route lets it skip that checkpoint.
+- **Verify (the behavioural test):** Submit an unclear action both directly and through a background queue. Neither should go ahead while it is still unresolved.
 - **Provable from:** `code`
 - **Evidence to look for:**
   - One enforced pre-execution check (resolver/validator/guard node) that consequential actions must pass, including retries and background jobs.
@@ -35,8 +37,8 @@ Priority checks (★) carry double weight in the score.
 
 ### `uncertainty/validate-signals` — Measure evidence quality beyond model confidence
 
-- **Action (what good looks like):** Combine grounding checks, schema validation, and calibrated predictors where useful; measure signal correlation rather than assuming independent evidence.
-- **Verify (the behavioural test):** Use examples where the model reports high confidence but grounding or required fields fail. The gate must still hold the action.
+- **Action (what good looks like):** Do not rely on the model simply saying it is confident. Also check that its answer is backed by real source material, that it fits the required format, and, where it helps, use other tested indicators. Check whether these signals actually agree, rather than assuming each one tells you something new.
+- **Verify (the behavioural test):** Try cases where the model says it is very confident but the answer is not actually supported by the sources, or is missing required details. The checkpoint should still pause the action.
 - **Provable from:** `code`
 - **Evidence to look for:**
   - Evidence checks beyond model self-confidence: grounding/citation checks, schema validation, uniqueness lookups, cross-source agreement.
@@ -46,8 +48,8 @@ Priority checks (★) carry double weight in the score.
 
 ### `uncertainty/missing-signal-policy` — Define behavior when a signal is unavailable
 
-- **Action (what good looks like):** Set timeouts and a hold, reject, or human-escalation path for missing or conflicting evidence; never silently treat a missing score as a pass.
-- **Verify (the behavioural test):** Disable an evidence service and inject contradictory inputs. The action must follow the documented conservative policy.
+- **Action (what good looks like):** Decide what happens when a check cannot run or the evidence conflicts: wait, refuse, or hand it to a person. A missing check must never quietly count as a pass.
+- **Verify (the behavioural test):** Switch off one of the checks and feed in conflicting information. The agent should fall back to the cautious response you wrote down, not just carry on.
 - **Provable from:** `code`
 - **Evidence to look for:**
   - Explicit timeouts and a conservative hold/reject path when an evidence source is unavailable or contradictory.
@@ -57,8 +59,8 @@ Priority checks (★) carry double weight in the score.
 
 ### ★ `uncertainty/calibration-and-load` — Calibrate for errors and reviewer workload
 
-- **Action (what good looks like):** On labeled domain cases, choose thresholds against unsafe-pass and unnecessary-question rates; set review capacity and recalibration triggers.
-- **Verify (the behavioural test):** Measure both rates on held-out cases and load-test the human queue. Breached limits must trigger review or a hold, not automatic threshold relaxation.
+- **Action (what good looks like):** Using real examples with known correct answers, set the point at which the agent should pause so you balance two problems: letting unsafe things through, and bothering people with needless questions. Decide how many questions reviewers can handle and when to re-tune that point.
+- **Verify (the behavioural test):** On fresh examples, measure both how often unsafe things slip through and how often you ask needlessly, and stress-test the reviewers' queue. If limits are breached it should trigger a review or a pause — never just quietly loosen the setting to cope.
 - **Provable from:** `test`
 - **Evidence to look for:**
   - Thresholds chosen against labelled cases, with measured unsafe-pass and unnecessary-question rates.
@@ -68,8 +70,9 @@ Priority checks (★) carry double weight in the score.
 
 ### `uncertainty/targeted-clarification` — Ask for the specific missing fact
 
-- **Action (what good looks like):** Show the unresolved field, valid choices, and why it matters; validate the answer and limit repeated clarification attempts before escalation.
-- **Verify (the behavioural test):** Test ambiguous, malformed, contradictory, and absent answers. No invalid answer may silently select a route or create an endless prompt loop.
+- **Action (what good looks like):** When the agent needs to ask, show exactly what is missing, the valid options, and why it matters. Check that the answer makes sense, and cap how many times it can keep asking before it hands off to a person.
+- **Verify (the behavioural test):** Reply to its question with answers that are vague, badly formed, contradictory, or empty. No bad answer should quietly decide the outcome or trap it in an endless loop of re-asking.
+- **Applies only when:** `ambiguous_targets` (resolves ambiguous targets) is true.
 - **Provable from:** `code`
 - **Evidence to look for:**
   - Clarification that names the missing field and the valid choices (e.g. 'order 4817 or 6234?'), validates the answer, and caps retries.
@@ -79,8 +82,9 @@ Priority checks (★) carry double weight in the score.
 
 ### ★ `uncertainty/safe-resumption` — Persist holds and revalidate before resuming
 
-- **Action (what good looks like):** Store the pending action with a version and expiry; on answer, recheck evidence and resource state, then apply Permission separately when required.
-- **Verify (the behavioural test):** Restart while waiting, then answer twice or after the target changes. Resume at most once with current evidence and the required authorization.
+- **Action (what good looks like):** When an action is paused waiting for an answer, save it with a version stamp and an expiry. When the answer comes, re-check the evidence and whether the target has changed, and run the Permission approval separately if the action needs it.
+- **Verify (the behavioural test):** Restart the system while an action is paused, then answer the question twice, or answer after the target has changed. It should resume at most once, using up-to-date evidence and with the approval it needs.
+- **Applies only when:** `ambiguous_targets` (resolves ambiguous targets) or `unreviewed_consequential` (consequential actions without review) is true.
 - **Provable from:** `code`
 - **Evidence to look for:**
   - Pending actions persisted (checkpointer, durable workflow, DB) with version and expiry; re-validation on resume; resume at most once.
@@ -90,8 +94,8 @@ Priority checks (★) carry double weight in the score.
 
 ### `uncertainty/clarification-feedback` — Close the loop with outcome evidence
 
-- **Action (what good looks like):** Record hold reasons, questions, answers, delays, and eventual outcomes; assign an owner to review recurring questions and missed errors.
-- **Verify (the behavioural test):** Run an ambiguous consequential action end to end. Verify the hold, clarification, separate approval, ledger trail, and an alert when the chosen review limits are exceeded.
+- **Action (what good looks like):** Keep a record of why each action was paused, what was asked, the answer, how long it took, and how it ended. Put someone in charge of reviewing questions that keep coming up and mistakes that slipped through.
+- **Verify (the behavioural test):** Run one unclear, serious action all the way through. Check that it paused, asked for clarification, went through a separate approval, left a full trail in the Ledger, and raised an alert when your review limits were exceeded.
 - **Provable from:** `process`
 - **Evidence to look for:**
   - Holds, questions, answers, delays, and outcomes recorded and reviewed by an owner.

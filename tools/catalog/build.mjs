@@ -20,7 +20,16 @@ import {
   roomGovernance,
   widerGovernance,
 } from "../../sites/governance-house/src/data/governance.js";
-import { consequentialPatterns, discoveryConcepts, frameworkPatterns, signals, toolPatterns } from "./signals.mjs";
+import {
+  checkRelevance,
+  consequentialPatterns,
+  discoveryConcepts,
+  frameworkPatterns,
+  roomRelevance,
+  signals,
+  toolPatterns,
+  traits,
+} from "./signals.mjs";
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const skillRefs = join(repoRoot, "skills/agent-governance-scorecard/references");
@@ -42,6 +51,7 @@ function buildCatalog() {
     risks: room.risks,
     limitation: room.limitation,
     governance: roomGovernance[room.id],
+    relevantWhen: roomRelevance[room.id] ?? null,
     checks: room.checks.map((check) => {
       const id = `${room.id}/${check.id}`;
       seen.add(id);
@@ -54,6 +64,7 @@ function buildCatalog() {
         action: check.action,
         verify: check.verify,
         priority: room.priorityChecks.includes(check.id),
+        appliesWhen: checkRelevance[id] ?? roomRelevance[room.id] ?? null,
         ...overlay,
       };
     }),
@@ -62,9 +73,16 @@ function buildCatalog() {
   for (const id of Object.keys(signals)) {
     if (!seen.has(id)) problems.push(`signals.mjs has ${id}, which is not a check on the site`);
   }
+  const traitIds = new Set(traits.map((t) => t.id));
   for (const room of catalogRooms) {
     if (!ADOPTION_ORDER.includes(room.id)) problems.push(`Room ${room.id} is missing from ADOPTION_ORDER`);
+    if (!(room.id in roomRelevance)) problems.push(`Room ${room.id} is missing from roomRelevance`);
   }
+  for (const t of traits) for (const dep of t.implies) if (!traitIds.has(dep)) problems.push(`Trait ${t.id} implies unknown trait ${dep}`);
+  for (const [id, list] of [...Object.entries(checkRelevance), ...Object.entries(roomRelevance)]) {
+    for (const trait of list ?? []) if (!traitIds.has(trait)) problems.push(`${id} uses unknown trait ${trait}`);
+  }
+  for (const id of Object.keys(checkRelevance)) if (!seen.has(id)) problems.push(`checkRelevance has ${id}, which is not a check on the site`);
   if (problems.length) {
     console.error(problems.map((p) => `✗ ${p}`).join("\n"));
     process.exit(1);
@@ -82,6 +100,7 @@ function buildCatalog() {
       not_applicable: "Does not apply to this agent (a reason is required).",
       unknown: "Cannot be decided from the code alone; needs an answer from the team.",
     },
+    traits,
     principles: governancePrinciples,
     sources: governanceSources,
     widerGovernance,
@@ -90,6 +109,12 @@ function buildCatalog() {
   };
   const version = createHash("sha256").update(JSON.stringify(body)).digest("hex").slice(0, 12);
   return { catalogVersion: version, generatedFrom: "sites/governance-house/src/data + tools/catalog/signals.mjs", ...body };
+}
+
+function relevanceText(list, catalog) {
+  if (!list) return "always.";
+  const label = (id) => `\`${id}\` (${catalog.traits.find((t) => t.id === id).label.toLowerCase()})`;
+  return `${list.map(label).join(" or ")} is true.`;
 }
 
 function roomMarkdown(room, catalog) {
@@ -104,6 +129,8 @@ function roomMarkdown(room, catalog) {
     "",
     `**Risks it addresses:** ${room.risks.join("; ")}.`,
     "",
+    `**Applies when:** ${relevanceText(room.relevantWhen, catalog)}`,
+    "",
     "## Checks",
     "",
     "Priority checks (★) carry double weight in the score.",
@@ -115,6 +142,7 @@ function roomMarkdown(room, catalog) {
       "",
       `- **Action (what good looks like):** ${check.action}`,
       `- **Verify (the behavioural test):** ${check.verify}`,
+      ...(String(check.appliesWhen) !== String(room.relevantWhen) ? [`- **Applies only when:** ${relevanceText(check.appliesWhen, catalog)}`] : []),
       `- **Provable from:** \`${check.provable}\``,
       `- **Evidence to look for:**`,
       ...check.lookFor.map((item) => `  - ${item}`),

@@ -8,7 +8,7 @@ import { test } from "node:test";
 import { loadCatalog } from "../skills/agent-governance-scorecard/scripts/lib/catalog.mjs";
 import { discover, redact } from "../skills/agent-governance-scorecard/scripts/lib/discover.mjs";
 import { renderHtml } from "../skills/agent-governance-scorecard/scripts/lib/html.mjs";
-import { scoreReport, validateReport } from "../skills/agent-governance-scorecard/scripts/lib/report.mjs";
+import { relevance, scoreReport, validateReport } from "../skills/agent-governance-scorecard/scripts/lib/report.mjs";
 
 const fixtureReport = () => JSON.parse(readFileSync("examples/northstar-refunds/.governance-scorecard/report.json", "utf8"));
 
@@ -40,7 +40,7 @@ test("validation rejects incomplete reports", () => {
   assert.ok(errors.some((e) => e.includes("unknown check id")));
   assert.ok(errors.some((e) => e.includes("needs at least one evidence item")));
   assert.ok(errors.some((e) => e.includes("needs fix.summary")));
-  assert.ok(errors.some((e) => e.includes("Every check must be assessed")));
+  assert.ok(errors.some((e) => e.includes("Every check that applies must be assessed")));
 });
 
 test("scoring weights priority checks double and excludes not_applicable", () => {
@@ -85,4 +85,55 @@ test("CLI template → validate fails until filled; render honours --fail-under"
   })();
   assert.equal(result, 2);
   assert.ok(readFileSync(join(dir, "scorecard.html"), "utf8").includes("northstar-refunds"));
+});
+
+const profile = (values, evidence = [{ path: "agent.py", line: 1 }]) => ({
+  traits: Object.fromEntries(
+    Object.entries(values).map(([id, value]) => [id, { value, reason: "checked", evidence: value ? evidence : [] }]),
+  ),
+});
+const allFalse = { acts: false, consequential: false, unreviewed_consequential: false, model_decides: false, ambiguous_targets: false };
+
+test("a question-answering bot is only assessed on Reliability", () => {
+  const scope = relevance({ profile: profile(allFalse) });
+  const applying = [...scope.checks].filter(([, s]) => s.applies).map(([id]) => id);
+  assert.equal(applying.length, 8);
+  assert.ok(applying.every((id) => id.startsWith("reliability/")));
+  assert.equal(scope.rooms.get("permission").applies, false);
+});
+
+test("an agent that only writes drafts for human review skips the approval mechanics", () => {
+  const scope = relevance({ profile: profile({ ...allFalse, acts: true, consequential: true, model_decides: true }) });
+  assert.equal(scope.checks.get("permission/exact-request-binding").applies, false);
+  assert.equal(scope.checks.get("permission/atomic-consumption").applies, false);
+  assert.equal(scope.checks.get("permission/execution-boundary").applies, true, "still has to enforce where it writes");
+  assert.equal(scope.checks.get("permission/human-review-context").applies, true, "the downstream review still counts");
+  assert.equal(scope.checks.get("uncertainty/targeted-clarification").applies, false);
+});
+
+test("checks that don't apply are neither required nor scored", () => {
+  const report = fixtureReport();
+  report.profile = profile({ ...allFalse, acts: true, consequential: true, model_decides: true });
+  const scope = relevance(report);
+  report.checks = report.checks.filter((c) => scope.checks.get(c.id).applies);
+  assert.deepEqual(validateReport(report).errors, []);
+  const scored = scoreReport(report);
+  assert.equal(scored.notRelevant.length, 6);
+  assert.equal(scored.overall.applicable, 42);
+  assert.ok(!scored.fixOrder.includes("permission/exact-request-binding"));
+});
+
+test("the profile can't contradict itself or the listed actions", () => {
+  const report = fixtureReport();
+  report.profile = profile({ ...allFalse, acts: false, consequential: true });
+  let { errors } = validateReport(report);
+  assert.ok(errors.some((e) => e.includes("acts must be true")));
+
+  report.profile = profile({ ...allFalse });
+  ({ errors } = validateReport(report));
+  assert.ok(errors.some((e) => e.includes("consequentialActions lists issue_refund")));
+
+  report.profile = profile({ ...allFalse, acts: true }, []);
+  ({ errors } = validateReport(report));
+  assert.ok(errors.some((e) => e.includes("acts is true, so it needs at least one evidence item")));
 });

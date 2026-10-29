@@ -7,14 +7,16 @@ Every retrieval, transformation, reasoning step, and tool contract earns its own
 
 **Risks it addresses:** Small failure rates compound across long chains; End-to-end demos hide the weakest link; Old certificates bless changed code.
 
+**Applies when:** always.
+
 ## Checks
 
 Priority checks (★) carry double weight in the score.
 
 ### `reliability/workflow-contracts` — Map the workflow and its contracts
 
-- **Action (what good looks like):** List every retrieval, transformation, model decision, and tool call with an owner, input/output schema, dependencies, and failure policy.
-- **Verify (the behavioural test):** Trace a representative request through the map. Every executable stage and interface must have a contract and owner.
+- **Action (what good looks like):** List every step in the agent's work — each time it looks something up, reshapes information, makes a judgement, or uses a tool. For each one, note who owns it, what goes in and what comes out, what it depends on, and what should happen if it fails.
+- **Verify (the behavioural test):** Follow one typical request through your map. Every step, and every hand-off between steps, should have an owner and a clear description of what it expects and what it produces.
 - **Provable from:** `code`
 - **Evidence to look for:**
   - Typed input/output schemas between steps (Pydantic/dataclasses/TypedDict/Zod/JSON Schema), including tool schemas.
@@ -25,8 +27,8 @@ Priority checks (★) carry double weight in the score.
 
 ### ★ `reliability/stage-test-suites` — Create isolated tests for each stage
 
-- **Action (what good looks like):** Classify each stage as deterministic, I/O, or model-based; build a repeatable suite with expected outcomes and representative failure cases.
-- **Verify (the behavioural test):** Run each suite independently in CI and inject a known defect. Its stage must fail without relying on the end-to-end suite.
+- **Action (what good looks like):** Sort each step into one of three kinds: steps that always give the same answer, steps that talk to other systems, and steps that rely on the AI's judgement. For each, build a repeatable set of tests covering both the expected results and the common ways it goes wrong.
+- **Verify (the behavioural test):** Run each step's tests on their own in your automated test run, and deliberately plant a fault in one step. That step's own tests should catch it — you should not need the full start-to-finish run to notice.
 - **Provable from:** `test`
 - **Evidence to look for:**
   - Separate tests per stage (retrieval, tool, transformation, model step) that run in isolation, with mocks for neighbours.
@@ -36,8 +38,8 @@ Priority checks (★) carry double weight in the score.
 
 ### `reliability/deterministic-invariants` — Gate deterministic code on required invariants
 
-- **Action (what good looks like):** Test schema handling, boundary values, arithmetic, and state transitions; block release when any required deterministic case fails.
-- **Verify (the behavioural test):** Run boundary and property tests where appropriate. All required assertions must pass; record the tested scope rather than claiming universal correctness.
+- **Action (what good looks like):** For the predictable, rule-based parts of the code, test that they handle the expected format, the edge values, the calculations, and the moves from one state to the next. If any must-pass check fails, do not release.
+- **Verify (the behavioural test):** Run the edge-case and rule checks. Every required one must pass, and write down exactly what you tested rather than claiming it is correct in every possible case.
 - **Provable from:** `test`
 - **Evidence to look for:**
   - Boundary, arithmetic, schema, and state-transition tests for deterministic code (e.g. refund amounts, date windows); property-based tests where useful.
@@ -47,8 +49,8 @@ Priority checks (★) carry double weight in the score.
 
 ### `reliability/io-failure-tests` — Inject dependency failures
 
-- **Action (what good looks like):** Test malformed payloads, timeouts, rate limits, duplicate responses, and partial failures; specify bounded retries and idempotency for side effects.
-- **Verify (the behavioural test):** Simulate an ambiguous timeout after a write. Recovery must reconcile the result or retry idempotently without duplicating the effect.
+- **Action (what good looks like):** Test what happens when the systems the agent relies on misbehave: garbled data, no reply in time, being told to slow down, the same answer arriving twice, or a job that only half-finishes. Decide how many times to retry, and make sure an action that runs twice does not cause its effect twice.
+- **Verify (the behavioural test):** Simulate the agent saving something and then timing out before it hears back, so it cannot tell whether the save worked. On recovery it should either confirm what actually happened or safely retry — without doing the same thing twice.
 - **Provable from:** `test`
 - **Evidence to look for:**
   - Tests that inject timeouts, malformed payloads, rate limits, duplicates, and partial failures.
@@ -59,8 +61,8 @@ Priority checks (★) carry double weight in the score.
 
 ### `reliability/model-eval-thresholds` — Set measurable model acceptance criteria
 
-- **Action (what good looks like):** Choose domain-specific error limits, representative data slices, and a justified sample size; record uncertainty in the measured results.
-- **Verify (the behavioural test):** Evaluate held-out cases, including consequential failure modes. Results and confidence bounds must satisfy the predeclared release criteria.
+- **Action (what good looks like):** Decide, for your particular use, how many mistakes are acceptable. Test against realistic samples of the different kinds of case you will actually see, use enough examples to trust the result, and note how much the measurement itself could be off.
+- **Verify (the behavioural test):** Test on examples the model has not seen before, including the mistakes that would do the most damage. The results, and the margin of error around them, must meet the pass mark you set in advance.
 - **Provable from:** `test`
 - **Evidence to look for:**
   - An evaluation dataset (golden set) with domain-specific metrics and pass thresholds (promptfoo, deepeval, ragas, inspect, LangSmith, Braintrust, vendor evals, or custom).
@@ -71,8 +73,8 @@ Priority checks (★) carry double weight in the score.
 
 ### ★ `reliability/version-bound-release` — Bind release evidence to the deployed version
 
-- **Action (what good looks like):** Record code, model, prompt, data, configuration, and evaluation versions in a release manifest; invalidate affected evidence when they change.
-- **Verify (the behavioural test):** Change a prompt or dependency after evaluation. The release gate must require fresh evidence for the affected stages.
+- **Action (what good looks like):** Keep a record of exactly which versions you are shipping — the code, the AI model, the instructions it is given, the data, the settings, and the tests you ran. If any of these changes, the old test results no longer count for the parts affected.
+- **Verify (the behavioural test):** Change an instruction or an underlying component after testing. The release check should then insist on fresh test results for the parts that changed before it lets you ship.
 - **Provable from:** `code`
 - **Evidence to look for:**
   - Model, prompt, tool schema, and code versions pinned and recorded together with the eval results that justified the release.
@@ -82,8 +84,8 @@ Priority checks (★) carry double weight in the score.
 
 ### ★ `reliability/integration-gate` — Test joins and complete journeys
 
-- **Action (what good looks like):** Run interface contract tests and representative end-to-end scenarios in CI, including authorization, retries, cancellation, and malformed handoffs.
-- **Verify (the behavioural test):** Introduce an incompatible interface while keeping each isolated suite green. The integration gate must block release.
+- **Action (what good looks like):** Test that the steps fit together correctly and that whole, realistic journeys work from start to finish — including permission checks, retries, cancelling midway, and one step passing bad information to the next. Run these automatically.
+- **Verify (the behavioural test):** Make two steps stop fitting together while each step still passes its own separate tests. The combined-journey check should catch the mismatch and stop the release.
 - **Provable from:** `test`
 - **Evidence to look for:**
   - Interface/contract tests between stages and representative end-to-end scenarios that run in CI and block merge/deploy.
@@ -93,8 +95,8 @@ Priority checks (★) carry double weight in the score.
 
 ### `reliability/production-drift-drill` — Rehearse failure after a passing release
 
-- **Action (what good looks like):** Set production error and drift alerts with owners and response deadlines; connect them to uncertainty holds or a supervised stop.
-- **Verify (the behavioural test):** Inject an out-of-range input and a sustained failure burst in staging. Confirm the hold or stop, retained ledger evidence, and an assigned investigation.
+- **Action (what good looks like):** Once the agent is live, set up alerts for rising errors and for the system slowly drifting away from how it behaved in testing. Give each alert an owner and a deadline to respond, and connect them to either pausing the agent or stopping it under supervision.
+- **Verify (the behavioural test):** In a test environment, feed in something well outside the normal range and a steady run of failures. Confirm the agent pauses or stops, that the Ledger keeps the evidence, and that someone is assigned to investigate.
 - **Provable from:** `process`
 - **Evidence to look for:**
   - Production monitoring of error rates and quality (sampled evals, trace analytics) with alert thresholds and owners.

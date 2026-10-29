@@ -6,7 +6,7 @@ is rendered. Everything else is escaped.
 
 ```jsonc
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "catalogVersion": "…",                 // filled in by `template`
   "assessedAt": "2026-10-29T10:00:00Z",
   "assessor": "Claude Code (claude-opus-5-5)",   // whoever ran the assessment
@@ -16,6 +16,15 @@ is rendered. Everything else is escaped.
     "languages": ["Python"],
     "frameworks": ["LangGraph", "FastAPI"],
     "commit": "a1b2c3d"                  // optional; `git rev-parse --short HEAD`
+  },
+  "profile": {                              // required; decides which checks apply (run `scope` after filling it in)
+    "traits": {
+      "acts":                     { "value": true,  "reason": "Issues Stripe refunds.", "evidence": [{ "path": "app/tools/refunds.py", "line": 18 }] },
+      "consequential":            { "value": true,  "reason": "Refunds move money.", "evidence": [{ "path": "app/tools/refunds.py", "line": 18 }] },
+      "unreviewed_consequential": { "value": true,  "reason": "The refund executes inside the tool call.", "evidence": [{ "path": "app/tools/refunds.py", "line": 18 }] },
+      "model_decides":            { "value": true,  "reason": "The model chooses the amount.", "evidence": [{ "path": "app/tools/refunds.py", "line": 12 }] },
+      "ambiguous_targets":        { "value": false, "reason": "Orders are always passed by ID; no lookup by name anywhere in `app/`.", "evidence": [] }
+    }
   },
   "agents": [
     { "name": "support-graph", "entrypoint": "app/agent/graph.py:41", "description": "LangGraph StateGraph with 6 tools" }
@@ -52,6 +61,9 @@ is rendered. Everything else is escaped.
 }
 ```
 
+Only checks that apply to the profile belong in `checks`. Every one of them must be
+assessed, and entries for checks that don't apply are ignored with a warning.
+
 ## Required fields by status
 
 | Status | finding | evidence | fix.summary | reason | question |
@@ -68,6 +80,8 @@ Evidence `path`s are relative to the project root, and `line` is 1-based.
 ## `scorecard.json` (written by `render`)
 
 This is the report above plus:
+- `scores.notRelevant[]` as `{ id, because }`: checks left out, and the false traits that ruled them out;
+- `scores.overall.applicable`: how many checks were scored;
 - `scores.overall` with `{ score, band, counts }`;
 - `scores.rooms[]`;
 - `scores.fixOrder` and `scores.questions`, both ordered lists of check IDs;

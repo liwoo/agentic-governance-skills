@@ -7,14 +7,16 @@ Every outgoing action carries a signed chain connecting its accountable owner, a
 
 **Risks it addresses:** Shared credentials make incidents anonymous; Plain identity headers can be forged; Reused instance IDs mix separate processes.
 
+**Applies when:** `acts` (takes actions) is true.
+
 ## Checks
 
 Priority checks (★) carry double weight in the score.
 
 ### `identity/owner-contract` — Define the identity contract
 
-- **Action (what good looks like):** Publish a schema for accountable owner, agent build, instance, and session; assign an owner to each deployed agent.
-- **Verify (the behavioural test):** Start an agent without its owner or build identity. Startup must fail with a diagnosable error.
+- **Action (what good looks like):** Write down, in one fixed format, the four things every agent must declare about itself: the person or team accountable for it, which version of the agent it is, which running copy it is, and which task it is working on. Give every agent you switch on a named owner.
+- **Verify (the behavioural test):** Try to start an agent that is missing its owner or its version. It should refuse to start and say plainly what was missing.
 - **Provable from:** `code`
 - **Evidence to look for:**
   - A declared owner/team and agent build or version for each deployed agent (config, manifest, deployment metadata, env schema).
@@ -25,8 +27,8 @@ Priority checks (★) carry double weight in the score.
 
 ### `identity/instance-lifecycle` — Separate process and session lifetimes
 
-- **Action (what good looks like):** Generate a fresh instance ID at process start and propagate the framework’s session ID across tools, retries, and queues.
-- **Verify (the behavioural test):** Restart the process and run two sessions. Instance IDs must change on restart; sessions must remain distinguishable across asynchronous work.
+- **Action (what good looks like):** Give each running copy of the agent a brand-new ID every time it starts, and carry the task's own ID unchanged through every tool it uses, every retry, and every background job.
+- **Verify (the behavioural test):** Restart the agent and run two tasks at once. The running-copy ID should change after the restart, and the two tasks should stay clearly separate even when work happens in the background.
 - **Provable from:** `code`
 - **Evidence to look for:**
   - A fresh instance ID generated per process start (uuid at boot), distinct from the session/thread/conversation ID.
@@ -37,8 +39,8 @@ Priority checks (★) carry double weight in the score.
 
 ### ★ `identity/trusted-issuer` — Issue claims outside the agent’s trust boundary
 
-- **Action (what good looks like):** Use a trusted identity issuer; keep signing keys out of model-accessible tools and prevent the agent from selecting another owner.
-- **Verify (the behavioural test):** Request a token for a different owner and submit a self-signed claim. The issuer or receiving service must reject each attempt.
+- **Action (what good looks like):** Have a separate, trusted service hand out each agent's proof of identity. Keep the secret keys that sign that proof somewhere the AI itself can never reach, and make sure the agent cannot claim to be a different owner.
+- **Verify (the behavioural test):** Try to get an identity pass made out to someone else, and try to use one the agent signed for itself. Both attempts should be refused — either by the service that issues passes or by the service receiving the request.
 - **Provable from:** `code`
 - **Evidence to look for:**
   - Credentials obtained from a workload/managed identity, OIDC, or token service rather than static secrets.
@@ -50,8 +52,8 @@ Priority checks (★) carry double weight in the score.
 
 ### ★ `identity/verify-claims` — Verify claims at every receiving boundary
 
-- **Action (what good looks like):** Validate signature, trusted issuer, intended audience, expiry, and required identity fields before accepting a request.
-- **Verify (the behavioural test):** Send altered, expired, wrong-audience, and missing-field tokens. Every receiving service must reject them before any side effect.
+- **Action (what good looks like):** Before any service acts on a request, it should check the identity pass: that the signature is genuine, that it came from the trusted issuer, that it was meant for this service, that it has not expired, and that all the required details are present.
+- **Verify (the behavioural test):** Send passes that are tampered with, expired, meant for a different service, or missing details. Every service should reject them before anything actually happens.
 - **Provable from:** `code`
 - **Evidence to look for:**
   - Receiving services/tools/MCP servers validate token signature, issuer, audience, expiry, and required claims before acting.
@@ -62,8 +64,8 @@ Priority checks (★) carry double weight in the score.
 
 ### `identity/short-lived-revocable` — Bound token lifetime and revocation delay
 
-- **Action (what good looks like):** Choose a maximum token lifetime and revocation deadline; document key rotation and how active instances are disabled.
-- **Verify (the behavioural test):** Rotate a key and disable a test instance. Confirm old authority stops working within the documented deadline.
+- **Action (what good looks like):** Decide how long an identity pass stays valid and how quickly you can cancel one. Write down how you replace the signing keys and how you switch off an agent that is already running.
+- **Verify (the behavioural test):** Replace a signing key and switch off a test agent. Check that its old access stops working within the time limit you committed to.
 - **Provable from:** `code`
 - **Evidence to look for:**
   - Short token lifetimes, key rotation config, and a way to disable a single agent instance or principal.
@@ -73,8 +75,8 @@ Priority checks (★) carry double weight in the score.
 
 ### ★ `identity/close-bypasses` — Route all external calls through enforcement
 
-- **Action (what good looks like):** Inventory HTTP, SDK, queue, and tool paths; require verified identity at destinations and restrict direct network or credential bypasses.
-- **Verify (the behavioural test):** Attempt an external action with a raw client and a direct SDK call. Neither may bypass identity verification.
+- **Action (what good looks like):** List every way the agent can reach the outside world — web requests, code libraries, background queues, built-in tools. Make each destination require a verified identity, and block any route that would let the agent skip that check.
+- **Verify (the behavioural test):** Try to make the agent act on the outside world through a back door — a direct connection or a direct code call. Neither should be able to skip the identity check.
 - **Provable from:** `code`
 - **Evidence to look for:**
   - All outbound HTTP/SDK/queue calls go through one wrapped client that attaches identity.
@@ -85,8 +87,8 @@ Priority checks (★) carry double weight in the score.
 
 ### `identity/record-verified-identity` — Carry verified identity into the ledger
 
-- **Action (what good looks like):** Attach receiver-verified identity and a shared action ID to the intent, execution trace, and outcome; avoid logging bearer tokens.
-- **Verify (the behavioural test):** Trace one queued action end to end. All records must resolve to the same owner, build, instance, session, and action without exposing credentials.
+- **Action (what good looks like):** On every record — the plan, the steps taken, and the result — attach the identity that the receiving service actually confirmed, plus one shared ID that ties those records together. Do not write the pass itself into the records.
+- **Verify (the behavioural test):** Follow one background action from start to finish. Every record along the way should point to the same owner, version, running copy, task, and action — and none should expose the secret pass.
 - **Provable from:** `code`
 - **Evidence to look for:**
   - Logs/traces/audit records carry owner, build, instance, session, and a shared action ID.
@@ -97,8 +99,9 @@ Priority checks (★) carry double weight in the score.
 
 ### `identity/compromised-identity-drill` — Exercise a compromised-credential scenario
 
-- **Action (what good looks like):** In staging, combine a valid test identity with an unauthorized action, then revoke that instance through Shutdown.
-- **Verify (the behavioural test):** Permission must deny the action, Ledger must preserve the denial, and subsequent calls must fail after the revocation deadline.
+- **Action (what good looks like):** In a safe test environment, take a genuine test identity and use it to attempt something it is not allowed to do, then switch that agent off using the Shutdown controls.
+- **Verify (the behavioural test):** The Permission safeguard should block the action, the Ledger should keep a record that it was blocked, and once the cut-off time passes, any further attempts by that agent should fail.
+- **Applies only when:** `consequential` (consequential actions) is true.
 - **Provable from:** `process`
 - **Evidence to look for:**
   - A test or runbook that uses a valid identity for an unauthorized action and then revokes it.
