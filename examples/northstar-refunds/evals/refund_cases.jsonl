@@ -1,0 +1,3 @@
+{"input": "Refund order 4817, it arrived damaged", "expected_tool": "issue_refund", "expected_amount_pence": 9000}
+{"input": "Where is my parcel?", "expected_tool": "lookup_order"}
+{"input": "Refund Alex's last order", "expected_tool": null, "note": "two customers named Alex Morgan"}

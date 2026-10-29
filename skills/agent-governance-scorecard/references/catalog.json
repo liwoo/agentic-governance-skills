@@ -1,0 +1,1632 @@
+{
+  "catalogVersion": "de86dddfc6a8",
+  "generatedFrom": "sites/governance-house/src/data + tools/catalog/signals.mjs",
+  "reviewed": "13 October 2026",
+  "scope": "These are educational mappings of controls to principles, not compliance certifications. Legal duties depend on jurisdiction, system classification, your role, and applicable dates. OECD principles and NIST guidance are not legislation.",
+  "storyOrder": [
+    "identity",
+    "reliability",
+    "permission",
+    "uncertainty",
+    "ledger",
+    "shutdown"
+  ],
+  "adoptionOrder": [
+    "identity",
+    "ledger",
+    "shutdown",
+    "permission",
+    "uncertainty",
+    "reliability"
+  ],
+  "statuses": {
+    "present": "Implemented and backed by evidence in the codebase.",
+    "partial": "Some of the control exists, but part of the action or its enforcement is missing.",
+    "missing": "No implementation found.",
+    "not_applicable": "Does not apply to this agent (a reason is required).",
+    "unknown": "Cannot be decided from the code alone; needs an answer from the team."
+  },
+  "principles": {
+    "accountability": {
+      "name": "Accountability",
+      "question": "Who is responsible?",
+      "definition": "Assign responsibility and keep evidence so people can answer for the system’s actions.",
+      "sources": [
+        "oecdAccountability",
+        "nist"
+      ]
+    },
+    "transparency": {
+      "name": "Transparency",
+      "question": "What should people know?",
+      "definition": "Make the use of AI, its capabilities, and its limitations clear to the people using or affected by it.",
+      "sources": [
+        "oecdTransparency",
+        "eu13"
+      ]
+    },
+    "explainability": {
+      "name": "Explainability",
+      "question": "Why this outcome?",
+      "definition": "Give people understandable, faithful reasons for a particular outcome, grounded in the evidence that actually mattered.",
+      "sources": [
+        "oecdTransparency",
+        "eu86"
+      ]
+    },
+    "oversight": {
+      "name": "Human oversight",
+      "question": "Can a person intervene?",
+      "definition": "Give informed people the authority and practical means to question, refuse, override, or stop the system.",
+      "sources": [
+        "eu14",
+        "oecdRights"
+      ]
+    },
+    "reliability": {
+      "name": "Reliability & robustness",
+      "question": "Does it work under stress?",
+      "definition": "Test performance for the intended use, including failures and changing conditions, and keep that evidence current.",
+      "sources": [
+        "eu15",
+        "nist"
+      ]
+    },
+    "safety": {
+      "name": "Safety & security",
+      "question": "Can harm be contained?",
+      "definition": "Reduce foreseeable harm and misuse, constrain dangerous capabilities, and recover or stop safely.",
+      "sources": [
+        "oecdSafety",
+        "eu15"
+      ]
+    },
+    "privacy": {
+      "name": "Privacy & data governance",
+      "question": "Is personal data protected?",
+      "definition": "Limit data collection and access, define retention, and protect people’s information throughout its use.",
+      "sources": [
+        "oecdRights",
+        "nist"
+      ]
+    },
+    "fairness": {
+      "name": "Fairness & contestability",
+      "question": "Is treatment fair and challengeable?",
+      "definition": "Assess harmful bias and unequal impacts, and provide a meaningful way to challenge outcomes and obtain review.",
+      "sources": [
+        "oecdRights",
+        "oecdTransparency",
+        "nist"
+      ]
+    }
+  },
+  "sources": {
+    "oecdAccountability": {
+      "title": "OECD · Principle 1.5",
+      "type": "International principle",
+      "url": "https://oecd.ai/en/dashboards/ai-principles/P9",
+      "detail": "Responsibility, traceability, and ongoing risk management across the AI lifecycle."
+    },
+    "oecdTransparency": {
+      "title": "OECD · Principle 1.3",
+      "type": "International principle",
+      "url": "https://oecd.ai/en/dashboards/ai-principles/P7",
+      "detail": "Meaningful disclosure of capabilities, limitations, and reasons for outcomes, enabling people to challenge them."
+    },
+    "oecdSafety": {
+      "title": "OECD · Principle 1.4",
+      "type": "International principle",
+      "url": "https://oecd.ai/en/dashboards/ai-principles/P8",
+      "detail": "Robust, secure operation and the ability to override, repair, or safely retire harmful systems."
+    },
+    "oecdRights": {
+      "title": "OECD · Principle 1.2",
+      "type": "International principle",
+      "url": "https://oecd.ai/en/dashboards/ai-principles/P6",
+      "detail": "Human rights, fairness, privacy, and human agency throughout the lifecycle."
+    },
+    "nist": {
+      "title": "NIST · AI RMF 1.0, §3",
+      "type": "Voluntary framework",
+      "url": "https://airc.nist.gov/airmf-resources/airmf/3-sec-characteristics/",
+      "detail": "Trustworthiness includes reliability, safety, security, accountability, transparency, explainability, privacy, and managed harmful bias. Version 1.0 (2023); revision in progress."
+    },
+    "eu12": {
+      "title": "EU AI Act · Article 12",
+      "type": "EU law · high-risk AI",
+      "url": "https://ai-act-service-desk.ec.europa.eu/en/ai-act/article-12",
+      "detail": "Automatic event logging to support traceability, monitoring, and risk identification for high-risk AI systems."
+    },
+    "eu13": {
+      "title": "EU AI Act · Article 13",
+      "type": "EU law · high-risk AI",
+      "url": "https://ai-act-service-desk.ec.europa.eu/en/ai-act/article-13",
+      "detail": "Information that lets deployers interpret outputs, understand limitations, and use high-risk AI appropriately."
+    },
+    "eu14": {
+      "title": "EU AI Act · Article 14",
+      "type": "EU law · high-risk AI",
+      "url": "https://ai-act-service-desk.ec.europa.eu/en/ai-act/article-14",
+      "detail": "Effective human oversight, including appropriate intervention, override, and interruption into a safe state."
+    },
+    "eu15": {
+      "title": "EU AI Act · Article 15",
+      "type": "EU law · high-risk AI",
+      "url": "https://ai-act-service-desk.ec.europa.eu/en/ai-act/article-15",
+      "detail": "Appropriate accuracy, robustness, and cybersecurity throughout a high-risk system’s lifecycle."
+    },
+    "eu86": {
+      "title": "EU AI Act · Article 86",
+      "type": "EU law · specified decisions",
+      "url": "https://ai-act-service-desk.ec.europa.eu/en/ai-act/article-86",
+      "detail": "An explanation right for certain adversely affecting, legally or similarly significant decisions based on Annex III high-risk AI, subject to the article’s exclusions and conditions."
+    }
+  },
+  "widerGovernance": [
+    {
+      "principle": "privacy",
+      "note": "These rooms provide some access and record controls. They still need a data inventory, minimisation, lawful processing where required, retention rules, and privacy assessment."
+    },
+    {
+      "principle": "fairness",
+      "note": "Reliability tests and audit records can support review. They still need group-specific evaluation, bias mitigation, accessible challenge routes, and meaningful remedies."
+    }
+  ],
+  "rooms": [
+    {
+      "id": "identity",
+      "number": "01",
+      "title": "The Passport Checkpoint",
+      "short": "Identity",
+      "practice": "Instance ID stamper",
+      "question": "Can every action be attributed?",
+      "accent": "#718fc1",
+      "summary": "Every outgoing action carries a signed chain connecting its accountable owner, agent build, running instance, and individual session.",
+      "risks": [
+        "Shared credentials make incidents anonymous",
+        "Plain identity headers can be forged",
+        "Reused instance IDs mix separate processes"
+      ],
+      "limitation": {
+        "title": "A valid identity can still perform a harmful action.",
+        "body": "The passport proves which credential acted, not whether the action was permitted or correct. A compromised credential can produce correctly signed requests; even complete attribution cannot prevent harm on its own.",
+        "companions": [
+          {
+            "roomId": "permission",
+            "reason": "Limit what the identified caller can do, even when its signature is valid."
+          },
+          {
+            "roomId": "ledger",
+            "reason": "Preserve the verified identity with intent and outcome so an incident can be reconstructed."
+          },
+          {
+            "roomId": "shutdown",
+            "reason": "Revoke the compromised instance’s authority and block further work."
+          }
+        ]
+      },
+      "governance": {
+        "headline": "An action has an accountable owner.",
+        "mappings": [
+          {
+            "principle": "accountability",
+            "contribution": "The signed passport connects each action to an owner, agent, instance, and session. An investigator can follow responsibility back to its source.",
+            "evidence": "Verified identity claims linked to action records.",
+            "sources": [
+              "oecdAccountability",
+              "eu12"
+            ]
+          },
+          {
+            "principle": "transparency",
+            "contribution": "Attribution supplies the “who acted?” part of a useful explanation and helps identify the responsible operator.",
+            "evidence": "A traceable owner and a documented contact for review.",
+            "sources": [
+              "oecdTransparency",
+              "eu13"
+            ]
+          }
+        ],
+        "remaining": "Signed identifiers do not explain a decision or establish legal accountability on their own. Define real responsibilities, disclose AI use, and give people a route to human review."
+      },
+      "checks": [
+        {
+          "id": "identity/owner-contract",
+          "room": "identity",
+          "title": "Define the identity contract",
+          "action": "Publish a schema for accountable owner, agent build, instance, and session; assign an owner to each deployed agent.",
+          "verify": "Start an agent without its owner or build identity. Startup must fail with a diagnosable error.",
+          "priority": false,
+          "provable": "code",
+          "lookFor": [
+            "A declared owner/team and agent build or version for each deployed agent (config, manifest, deployment metadata, env schema).",
+            "Startup validation that refuses to run when owner or build identity is missing."
+          ],
+          "notEnough": [
+            "An owner named only in a README or CODEOWNERS with nothing read at runtime."
+          ],
+          "fix": "Add a typed identity config (owner, agent name, build/version) loaded at startup and fail fast when any field is missing."
+        },
+        {
+          "id": "identity/instance-lifecycle",
+          "room": "identity",
+          "title": "Separate process and session lifetimes",
+          "action": "Generate a fresh instance ID at process start and propagate the framework’s session ID across tools, retries, and queues.",
+          "verify": "Restart the process and run two sessions. Instance IDs must change on restart; sessions must remain distinguishable across asynchronous work.",
+          "priority": false,
+          "provable": "code",
+          "lookFor": [
+            "A fresh instance ID generated per process start (uuid at boot), distinct from the session/thread/conversation ID.",
+            "The session ID propagated through tool calls, retries, and background/queued work."
+          ],
+          "notEnough": [
+            "A single hard-coded agent name used as the only identifier."
+          ],
+          "fix": "Generate an instance ID at process start, keep the framework's session/thread ID, and pass both in a context object to every tool and queued job."
+        },
+        {
+          "id": "identity/trusted-issuer",
+          "room": "identity",
+          "title": "Issue claims outside the agent’s trust boundary",
+          "action": "Use a trusted identity issuer; keep signing keys out of model-accessible tools and prevent the agent from selecting another owner.",
+          "verify": "Request a token for a different owner and submit a self-signed claim. The issuer or receiving service must reject each attempt.",
+          "priority": true,
+          "provable": "code",
+          "lookFor": [
+            "Credentials obtained from a workload/managed identity, OIDC, or token service rather than static secrets.",
+            "Signing keys and identity selection kept out of tools the model can call."
+          ],
+          "notEnough": [
+            "A long-lived shared API key in env/config used by several agents.",
+            "The agent choosing its own owner/principal from model output or request input."
+          ],
+          "fix": "Replace shared static keys with a per-agent workload identity (cloud managed identity, OIDC client credentials, SPIFFE) and keep issuance outside the agent process."
+        },
+        {
+          "id": "identity/verify-claims",
+          "room": "identity",
+          "title": "Verify claims at every receiving boundary",
+          "action": "Validate signature, trusted issuer, intended audience, expiry, and required identity fields before accepting a request.",
+          "verify": "Send altered, expired, wrong-audience, and missing-field tokens. Every receiving service must reject them before any side effect.",
+          "priority": true,
+          "provable": "code",
+          "lookFor": [
+            "Receiving services/tools/MCP servers validate token signature, issuer, audience, expiry, and required claims before acting."
+          ],
+          "notEnough": [
+            "Trusting a plain header such as `X-Agent-Name` or a field in the request body.",
+            "Verifying signature but not audience/expiry."
+          ],
+          "fix": "Validate a signed token at each tool/API boundary (signature + iss + aud + exp + required identity claims) and reject before any side effect."
+        },
+        {
+          "id": "identity/short-lived-revocable",
+          "room": "identity",
+          "title": "Bound token lifetime and revocation delay",
+          "action": "Choose a maximum token lifetime and revocation deadline; document key rotation and how active instances are disabled.",
+          "verify": "Rotate a key and disable a test instance. Confirm old authority stops working within the documented deadline.",
+          "priority": false,
+          "provable": "code",
+          "lookFor": [
+            "Short token lifetimes, key rotation config, and a way to disable a single agent instance or principal."
+          ],
+          "notEnough": [
+            "Tokens or keys with no expiry; rotation described only in prose."
+          ],
+          "fix": "Set an explicit maximum token lifetime, document rotation, and add a per-instance disable/deny list checked at the boundary."
+        },
+        {
+          "id": "identity/close-bypasses",
+          "room": "identity",
+          "title": "Route all external calls through enforcement",
+          "action": "Inventory HTTP, SDK, queue, and tool paths; require verified identity at destinations and restrict direct network or credential bypasses.",
+          "verify": "Attempt an external action with a raw client and a direct SDK call. Neither may bypass identity verification.",
+          "priority": true,
+          "provable": "code",
+          "lookFor": [
+            "All outbound HTTP/SDK/queue calls go through one wrapped client that attaches identity.",
+            "Lint rules, scanners, or code review rules that forbid raw clients in agent code."
+          ],
+          "notEnough": [
+            "A wrapper exists but tools also call `requests`/`httpx`/`fetch`/SDKs directly."
+          ],
+          "fix": "Route every tool's external call through one identity-attaching client and add a lint/scan rule that fails CI on raw client imports in agent modules."
+        },
+        {
+          "id": "identity/record-verified-identity",
+          "room": "identity",
+          "title": "Carry verified identity into the ledger",
+          "action": "Attach receiver-verified identity and a shared action ID to the intent, execution trace, and outcome; avoid logging bearer tokens.",
+          "verify": "Trace one queued action end to end. All records must resolve to the same owner, build, instance, session, and action without exposing credentials.",
+          "priority": false,
+          "provable": "code",
+          "lookFor": [
+            "Logs/traces/audit records carry owner, build, instance, session, and a shared action ID.",
+            "Bearer tokens are not written to logs."
+          ],
+          "notEnough": [
+            "Logs with timestamps and messages but no attributable identity or correlation ID."
+          ],
+          "fix": "Attach verified identity fields and an action ID to the trace context and every ledger record; scrub Authorization headers from logs."
+        },
+        {
+          "id": "identity/compromised-identity-drill",
+          "room": "identity",
+          "title": "Exercise a compromised-credential scenario",
+          "action": "In staging, combine a valid test identity with an unauthorized action, then revoke that instance through Shutdown.",
+          "verify": "Permission must deny the action, Ledger must preserve the denial, and subsequent calls must fail after the revocation deadline.",
+          "priority": false,
+          "provable": "process",
+          "lookFor": [
+            "A test or runbook that uses a valid identity for an unauthorized action and then revokes it."
+          ],
+          "notEnough": [
+            "Unit tests that only cover the happy path for authentication."
+          ],
+          "fix": "Add a staging test: valid test identity + forbidden action must be denied and recorded, and calls must fail after revoking that instance."
+        }
+      ]
+    },
+    {
+      "id": "reliability",
+      "number": "02",
+      "title": "The Proof Bridge",
+      "short": "Reliability",
+      "practice": "Subtask reliability validator",
+      "question": "Has every part proved reliable?",
+      "accent": "#dda85f",
+      "summary": "Every retrieval, transformation, reasoning step, and tool contract earns its own fresh reliability certificate before joining the workflow.",
+      "risks": [
+        "Small failure rates compound across long chains",
+        "End-to-end demos hide the weakest link",
+        "Old certificates bless changed code"
+      ],
+      "limitation": {
+        "title": "Passing parts can still form a failing system.",
+        "body": "Tests sample known conditions. Interfaces, production drift, and unfamiliar inputs can defeat a workflow whose components all passed. A certificate is evidence for a tested version and context, not a guarantee of future correctness.",
+        "companions": [
+          {
+            "roomId": "uncertainty",
+            "reason": "Hold decisions when required evidence is missing or outside the validated operating range."
+          },
+          {
+            "roomId": "ledger",
+            "reason": "Capture production failures and their versions so evaluation suites can learn from them."
+          },
+          {
+            "roomId": "shutdown",
+            "reason": "Contain a live failure when monitoring crosses a defined error or impact limit."
+          }
+        ]
+      },
+      "governance": {
+        "headline": "Trust rests on current test evidence.",
+        "mappings": [
+          {
+            "principle": "reliability",
+            "contribution": "Every span earns fresh evidence before the workflow crosses. Testing parts and interfaces exposes weaknesses that a successful demo can hide.",
+            "evidence": "Version-bound evaluations, interface tests, and end-to-end results.",
+            "sources": [
+              "eu15",
+              "nist"
+            ]
+          },
+          {
+            "principle": "safety",
+            "contribution": "A failed span blocks release, keeping a known defect from becoming a consequential action.",
+            "evidence": "Failure cases, release thresholds, and a blocked-release record.",
+            "sources": [
+              "oecdSafety",
+              "eu15"
+            ]
+          },
+          {
+            "principle": "accountability",
+            "contribution": "The certificate records what was tested and which version passed, so a release decision can be examined later.",
+            "evidence": "Test ownership and a recorded release decision.",
+            "sources": [
+              "oecdAccountability"
+            ]
+          }
+        ],
+        "remaining": "Passing tests is not a guarantee of safe or fair operation. Evaluate real-world conditions, affected groups, system interactions, and performance after deployment."
+      },
+      "checks": [
+        {
+          "id": "reliability/workflow-contracts",
+          "room": "reliability",
+          "title": "Map the workflow and its contracts",
+          "action": "List every retrieval, transformation, model decision, and tool call with an owner, input/output schema, dependencies, and failure policy.",
+          "verify": "Trace a representative request through the map. Every executable stage and interface must have a contract and owner.",
+          "priority": false,
+          "provable": "code",
+          "lookFor": [
+            "Typed input/output schemas between steps (Pydantic/dataclasses/TypedDict/Zod/JSON Schema), including tool schemas.",
+            "A documented or code-defined workflow graph with owners and failure policy."
+          ],
+          "notEnough": [
+            "Free-form dicts/strings passed between steps with no schema."
+          ],
+          "fix": "Give every retrieval, model, and tool step a typed input/output contract and document the step graph with an owner and failure policy per step."
+        },
+        {
+          "id": "reliability/stage-test-suites",
+          "room": "reliability",
+          "title": "Create isolated tests for each stage",
+          "action": "Classify each stage as deterministic, I/O, or model-based; build a repeatable suite with expected outcomes and representative failure cases.",
+          "verify": "Run each suite independently in CI and inject a known defect. Its stage must fail without relying on the end-to-end suite.",
+          "priority": true,
+          "provable": "test",
+          "lookFor": [
+            "Separate tests per stage (retrieval, tool, transformation, model step) that run in isolation, with mocks for neighbours."
+          ],
+          "notEnough": [
+            "Only an end-to-end smoke test or a notebook demo."
+          ],
+          "fix": "Create one test module per workflow stage with its own expected outcomes and failure cases, and run them in CI."
+        },
+        {
+          "id": "reliability/deterministic-invariants",
+          "room": "reliability",
+          "title": "Gate deterministic code on required invariants",
+          "action": "Test schema handling, boundary values, arithmetic, and state transitions; block release when any required deterministic case fails.",
+          "verify": "Run boundary and property tests where appropriate. All required assertions must pass; record the tested scope rather than claiming universal correctness.",
+          "priority": false,
+          "provable": "test",
+          "lookFor": [
+            "Boundary, arithmetic, schema, and state-transition tests for deterministic code (e.g. refund amounts, date windows); property-based tests where useful."
+          ],
+          "notEnough": [
+            "Tests that only assert the function returns without error."
+          ],
+          "fix": "Add boundary and property tests for money, dates, limits, and state transitions, and block release on failure."
+        },
+        {
+          "id": "reliability/io-failure-tests",
+          "room": "reliability",
+          "title": "Inject dependency failures",
+          "action": "Test malformed payloads, timeouts, rate limits, duplicate responses, and partial failures; specify bounded retries and idempotency for side effects.",
+          "verify": "Simulate an ambiguous timeout after a write. Recovery must reconcile the result or retry idempotently without duplicating the effect.",
+          "priority": false,
+          "provable": "test",
+          "lookFor": [
+            "Tests that inject timeouts, malformed payloads, rate limits, duplicates, and partial failures.",
+            "Bounded retries with idempotency keys for side-effecting calls."
+          ],
+          "notEnough": [
+            "Unbounded or blind retries around writes; `except Exception: pass`."
+          ],
+          "fix": "Bound retries, add idempotency keys to side-effecting calls, and test timeout-after-write recovery."
+        },
+        {
+          "id": "reliability/model-eval-thresholds",
+          "room": "reliability",
+          "title": "Set measurable model acceptance criteria",
+          "action": "Choose domain-specific error limits, representative data slices, and a justified sample size; record uncertainty in the measured results.",
+          "verify": "Evaluate held-out cases, including consequential failure modes. Results and confidence bounds must satisfy the predeclared release criteria.",
+          "priority": false,
+          "provable": "test",
+          "lookFor": [
+            "An evaluation dataset (golden set) with domain-specific metrics and pass thresholds (promptfoo, deepeval, ragas, inspect, LangSmith, Braintrust, vendor evals, or custom).",
+            "Consequential failure cases in the dataset, not just happy paths."
+          ],
+          "notEnough": [
+            "Manual spot checks; eval scripts with no threshold that can fail."
+          ],
+          "fix": "Create an eval dataset with consequential edge cases, define per-metric thresholds, and make the eval job fail when a threshold is missed."
+        },
+        {
+          "id": "reliability/version-bound-release",
+          "room": "reliability",
+          "title": "Bind release evidence to the deployed version",
+          "action": "Record code, model, prompt, data, configuration, and evaluation versions in a release manifest; invalidate affected evidence when they change.",
+          "verify": "Change a prompt or dependency after evaluation. The release gate must require fresh evidence for the affected stages.",
+          "priority": true,
+          "provable": "code",
+          "lookFor": [
+            "Model, prompt, tool schema, and code versions pinned and recorded together with the eval results that justified the release."
+          ],
+          "notEnough": [
+            "Floating model aliases (e.g. `latest`) and prompts edited inline with no version."
+          ],
+          "fix": "Pin model and prompt versions, record them in a release manifest with eval results, and re-run evals when any of them change."
+        },
+        {
+          "id": "reliability/integration-gate",
+          "room": "reliability",
+          "title": "Test joins and complete journeys",
+          "action": "Run interface contract tests and representative end-to-end scenarios in CI, including authorization, retries, cancellation, and malformed handoffs.",
+          "verify": "Introduce an incompatible interface while keeping each isolated suite green. The integration gate must block release.",
+          "priority": true,
+          "provable": "test",
+          "lookFor": [
+            "Interface/contract tests between stages and representative end-to-end scenarios that run in CI and block merge/deploy."
+          ],
+          "notEnough": [
+            "Integration tests that exist but are not part of any CI gate."
+          ],
+          "fix": "Add contract tests for each handoff and an end-to-end scenario suite as a required CI check."
+        },
+        {
+          "id": "reliability/production-drift-drill",
+          "room": "reliability",
+          "title": "Rehearse failure after a passing release",
+          "action": "Set production error and drift alerts with owners and response deadlines; connect them to uncertainty holds or a supervised stop.",
+          "verify": "Inject an out-of-range input and a sustained failure burst in staging. Confirm the hold or stop, retained ledger evidence, and an assigned investigation.",
+          "priority": false,
+          "provable": "process",
+          "lookFor": [
+            "Production monitoring of error rates and quality (sampled evals, trace analytics) with alert thresholds and owners.",
+            "Alerts wired to a hold or a supervised stop (drift → shutdown)."
+          ],
+          "notEnough": [
+            "Dashboards with no alert thresholds or owners."
+          ],
+          "fix": "Define production error/drift alerts with owners and connect sustained breaches to the uncertainty hold or the stop path."
+        }
+      ]
+    },
+    {
+      "id": "permission",
+      "number": "03",
+      "title": "The Single-Use Vault",
+      "short": "Permission",
+      "practice": "Action-space constraint",
+      "question": "What is the agent allowed to do?",
+      "accent": "#e38b68",
+      "summary": "Ordinary tools stay available. Consequential actions remain locked until a human grants a signed, exact, single-use approval.",
+      "risks": [
+        "A hallucination becomes an irreversible action",
+        "Prompt injection reaches a dangerous tool",
+        "Broad approvals become reusable master keys"
+      ],
+      "limitation": {
+        "title": "Approval fatigue can turn a strong lock into a formality.",
+        "body": "Exact, single-use approval enforces a person’s decision, including a mistaken one. Excessive prompts, weak evidence, or time pressure can encourage rubber-stamping. The other rooms support review and containment; reviewer capacity still needs its own design.",
+        "companions": [
+          {
+            "roomId": "uncertainty",
+            "reason": "Resolve missing facts before requesting approval, so the reviewer sees one well-specified action."
+          },
+          {
+            "roomId": "ledger",
+            "reason": "Record proposals and decisions; review approval volume and outcomes for signs that oversight is failing."
+          },
+          {
+            "roomId": "shutdown",
+            "reason": "Stop further execution if an approved action starts causing harm; completed effects may still need remediation."
+          }
+        ]
+      },
+      "governance": {
+        "headline": "Human authority has an enforceable boundary.",
+        "mappings": [
+          {
+            "principle": "oversight",
+            "contribution": "A human can refuse the exact consequential action before it executes. The single-use key gives that decision a real technical boundary.",
+            "evidence": "The exact request, approver, scope, expiry, and one-time use.",
+            "sources": [
+              "eu14"
+            ]
+          },
+          {
+            "principle": "safety",
+            "contribution": "The vault limits what an injected or mistaken instruction can cause. A broad or reused approval cannot silently open more actions.",
+            "evidence": "Denied requests and tests that reject altered or reused approvals.",
+            "sources": [
+              "oecdSafety",
+              "eu15"
+            ]
+          },
+          {
+            "principle": "accountability",
+            "contribution": "The approval binds an identified person to a specific authorization rather than leaving a reusable blanket permission.",
+            "evidence": "An attributable approval and execution record.",
+            "sources": [
+              "oecdAccountability"
+            ]
+          }
+        ],
+        "remaining": "An approval button is meaningful only if the reviewer has enough information, time, competence, and authority to refuse. This key design is an implementation choice, not a prescribed legal mechanism."
+      },
+      "checks": [
+        {
+          "id": "permission/capability-policy",
+          "room": "permission",
+          "title": "Inventory and classify executable capabilities",
+          "action": "Create a tool/action matrix listing risk, allowed destinations, required reviewer role, and deny-by-default behavior for unknown actions.",
+          "verify": "Register an unclassified tool or destination. Execution must remain blocked until its policy is explicitly defined.",
+          "priority": false,
+          "provable": "code",
+          "lookFor": [
+            "An explicit registry of tools/actions with risk level, allowed destinations, and required approval.",
+            "Deny-by-default for unknown tools or destinations."
+          ],
+          "notEnough": [
+            "All tools registered equally with no risk classification."
+          ],
+          "fix": "Create a tool registry that classifies each tool (read / internal write / consequential), lists allowed destinations, and blocks anything unclassified."
+        },
+        {
+          "id": "permission/execution-boundary",
+          "room": "permission",
+          "title": "Enforce policy where the side effect occurs",
+          "action": "Put authorization in the tool gateway or receiving service; remove direct credentials and restrict egress that could bypass it.",
+          "verify": "Attempt the same dangerous action through the normal tool, a raw SDK, and a direct HTTP request. All paths must enforce the policy.",
+          "priority": true,
+          "provable": "code",
+          "lookFor": [
+            "Authorization enforced inside the tool wrapper, gateway, or receiving service — where the side effect happens.",
+            "No direct credentials or raw SDK/HTTP paths that can perform the consequential action without the check."
+          ],
+          "notEnough": [
+            "A system prompt telling the model to ask first.",
+            "A framework interrupt/confirm UI that the tool function itself does not depend on."
+          ],
+          "fix": "Move the approval check into the consequential tool's execution path (wrapper or receiving API) so the side effect cannot run without it, and remove bypass paths."
+        },
+        {
+          "id": "permission/exact-request-binding",
+          "room": "permission",
+          "title": "Bind approval to the complete action",
+          "action": "Canonicalize and sign the operation, target, arguments, instance/session, request ID, and expiry; include relevant resource version or preconditions.",
+          "verify": "Change an amount, recipient, argument, or resource version after approval. Execution must reject the mismatch and request fresh approval.",
+          "priority": true,
+          "provable": "code",
+          "lookFor": [
+            "Approvals bound to the exact operation and arguments (canonical hash of tool + args), target, session, and expiry; mismatch is rejected."
+          ],
+          "notEnough": [
+            "A boolean `approved=True` flag or a generic 'allow this tool' permission."
+          ],
+          "fix": "Issue approvals as signed tokens containing a hash of the canonical tool name + arguments + session + expiry, and verify the hash against the actual call."
+        },
+        {
+          "id": "permission/human-review-context",
+          "room": "permission",
+          "title": "Build a review screen that supports refusal",
+          "action": "Show the exact proposed change, supporting evidence, uncertainty, and consequences to an authenticated, authorized reviewer; offer a clear deny action.",
+          "verify": "An unauthorized reviewer cannot approve. An authorized reviewer can inspect the change and deny it without a side effect occurring.",
+          "priority": false,
+          "provable": "code",
+          "lookFor": [
+            "An approval UI/message showing the exact action, arguments, evidence, and consequences, with a clear deny, restricted to authorized reviewers."
+          ],
+          "notEnough": [
+            "A generic 'Agent wants to use tool X — Allow?' prompt; any user able to approve."
+          ],
+          "fix": "Render the exact proposed action with its arguments, evidence, and impact, require an authorized reviewer role, and offer an explicit deny."
+        },
+        {
+          "id": "permission/atomic-consumption",
+          "room": "permission",
+          "title": "Consume approvals atomically",
+          "action": "Store approval state outside the agent, enforce short expiry, and atomically reserve or consume it; use an execution idempotency key for retries.",
+          "verify": "Submit the same approval concurrently, then replay it after a timeout. At most one side effect may occur; expired approvals must fail.",
+          "priority": true,
+          "provable": "code",
+          "lookFor": [
+            "Approval state stored outside the agent (DB/cache) with short expiry, consumed atomically (compare-and-set / unique nonce / jti), plus an execution idempotency key."
+          ],
+          "notEnough": [
+            "Approvals kept in process memory or reusable until restart."
+          ],
+          "fix": "Store approvals in a durable store, consume each nonce atomically before executing, enforce expiry, and pass an idempotency key to the side-effecting API."
+        },
+        {
+          "id": "permission/review-load",
+          "room": "permission",
+          "title": "Design and measure the review workload",
+          "action": "Define which consequential actions require review, queue ownership, capacity limits, and escalation; keep low-risk work within bounded policy instead of prompting indiscriminately.",
+          "verify": "Load-test the approval queue with representative reviewers. Overload must hold or escalate work, never silently approve it; record volume, delay, and decision quality.",
+          "priority": false,
+          "provable": "process",
+          "lookFor": [
+            "Policy on which actions need review vs bounded autonomy, queue ownership, escalation, and handling when reviewers are overloaded."
+          ],
+          "notEnough": [
+            "Every tool call prompting for approval (fatigue) or none of them."
+          ],
+          "fix": "Limit approval to consequential actions, define the reviewer queue owner and capacity, and make overload hold or escalate rather than auto-approve."
+        },
+        {
+          "id": "permission/authorization-evidence",
+          "room": "permission",
+          "title": "Record the authorization lifecycle",
+          "action": "Link each proposal, human decision, token consumption, denial, and execution outcome in the ledger using one action ID and verified identities.",
+          "verify": "For an approved action and a rejected replay, reconstruct who decided, what was authorized, and what actually executed without storing the bearer approval token.",
+          "priority": false,
+          "provable": "code",
+          "lookFor": [
+            "Proposal, decision (who/when), token consumption, denial, and execution outcome recorded under one action ID."
+          ],
+          "notEnough": [
+            "Logging that an approval happened without the approver, arguments, or outcome."
+          ],
+          "fix": "Write proposal, decision, consumption, and outcome events to the ledger under a shared action ID with the verified reviewer identity (not the bearer token)."
+        },
+        {
+          "id": "permission/bad-approval-drill",
+          "room": "permission",
+          "title": "Test containment after a mistaken approval",
+          "action": "In staging, approve a bounded harmful test action, trigger the independent stop, and follow the documented compensation or incident process.",
+          "verify": "New work must stop, credentials must be revoked within the defined deadline, and the ledger must identify completed effects requiring remediation.",
+          "priority": false,
+          "provable": "process",
+          "lookFor": [
+            "A test or runbook that approves a bounded harmful test action, then triggers stop and compensation."
+          ],
+          "notEnough": [
+            "Tests that only cover denied or correctly approved actions."
+          ],
+          "fix": "Add a staging drill: approve a bounded bad action, trigger the stop, and verify revocation and the remediation list from the ledger."
+        }
+      ]
+    },
+    {
+      "id": "uncertainty",
+      "number": "04",
+      "title": "The Clarification Junction",
+      "short": "Uncertainty",
+      "practice": "Uncertainty threshold guard",
+      "question": "Will the agent ask instead of guessing?",
+      "accent": "#9e8bc5",
+      "summary": "High-stakes decisions combine independent uncertainty signals. Below a calibrated threshold, the action waits until a targeted clarification resolves the missing evidence.",
+      "risks": [
+        "A fluent answer conceals an unsupported guess",
+        "Self-reported confidence can be confidently wrong",
+        "Low thresholds permit unsafe autonomy"
+      ],
+      "limitation": {
+        "title": "More questions can mean less meaningful human attention.",
+        "body": "Aggressive thresholds can overload people with clarifications; permissive thresholds let unsafe guesses through. Even a timely answer may be wrong. Clarification resolves missing information—it does not authorize the resulting action.",
+        "companions": [
+          {
+            "roomId": "reliability",
+            "reason": "Calibrate the gate on representative cases and measure both missed errors and unnecessary questions."
+          },
+          {
+            "roomId": "permission",
+            "reason": "Require separate authorization when the clarified action is consequential."
+          },
+          {
+            "roomId": "ledger",
+            "reason": "Retain holds, answers, and outcomes to identify repeated questions, fatigue, and calibration drift."
+          }
+        ]
+      },
+      "governance": {
+        "headline": "Limits become visible before an action proceeds.",
+        "mappings": [
+          {
+            "principle": "transparency",
+            "contribution": "The red signal exposes the missing recipient instead of hiding a guess inside a fluent answer.",
+            "evidence": "The unresolved parameter and the reason execution was held.",
+            "sources": [
+              "oecdTransparency",
+              "eu13"
+            ]
+          },
+          {
+            "principle": "oversight",
+            "contribution": "The train waits while a person resolves the ambiguity. The response changes the permitted route before the action continues.",
+            "evidence": "The targeted question, human answer, and resumed decision.",
+            "sources": [
+              "eu14"
+            ]
+          },
+          {
+            "principle": "explainability",
+            "contribution": "The held route and the answer provide evidence for explaining why this recipient was chosen. That explanation must remain faithful to the actual decision.",
+            "evidence": "A decision rationale tied to the clarification and verified inputs.",
+            "sources": [
+              "oecdTransparency",
+              "eu86"
+            ]
+          }
+        ],
+        "remaining": "A confidence score is not an explanation, and clarification is not permission. Validate the uncertainty signals and explain the actual outcome in language its audience understands."
+      },
+      "checks": [
+        {
+          "id": "uncertainty/decision-inventory",
+          "room": "uncertainty",
+          "title": "Identify decisions that must not guess",
+          "action": "List consequential decision points, required evidence, ambiguity conditions, and the owner responsible for each hold or escalation policy.",
+          "verify": "Remove a required field from every listed decision type. Each must reach an explicit hold or rejection path before execution.",
+          "priority": false,
+          "provable": "code",
+          "lookFor": [
+            "A list (code or doc) of consequential decisions with required evidence/fields and what happens when they are missing or ambiguous."
+          ],
+          "notEnough": [
+            "Tool parameters that are optional or free text for consequential identifiers (customer, recipient, amount)."
+          ],
+          "fix": "Enumerate the consequential decisions, make their identifying fields required and typed, and define the hold/reject path for each."
+        },
+        {
+          "id": "uncertainty/uncertainty-gateway",
+          "room": "uncertainty",
+          "title": "Put the uncertainty gate before execution",
+          "action": "Route consequential decisions through one enforced evaluation step, including retries and background jobs; prevent alternate tool paths from skipping it.",
+          "verify": "Submit an ambiguous action through interactive and queued paths. Neither may execute while its decision state is unresolved.",
+          "priority": true,
+          "provable": "code",
+          "lookFor": [
+            "One enforced pre-execution check (resolver/validator/guard node) that consequential actions must pass, including retries and background jobs."
+          ],
+          "notEnough": [
+            "Asking the model 'are you sure?' or relying on prompt instructions to ask when unsure."
+          ],
+          "fix": "Add a pre-execution gate in code that checks required fields, uniqueness of targets, and source agreement before any consequential tool runs, on every path."
+        },
+        {
+          "id": "uncertainty/validate-signals",
+          "room": "uncertainty",
+          "title": "Measure evidence quality beyond model confidence",
+          "action": "Combine grounding checks, schema validation, and calibrated predictors where useful; measure signal correlation rather than assuming independent evidence.",
+          "verify": "Use examples where the model reports high confidence but grounding or required fields fail. The gate must still hold the action.",
+          "priority": false,
+          "provable": "code",
+          "lookFor": [
+            "Evidence checks beyond model self-confidence: grounding/citation checks, schema validation, uniqueness lookups, cross-source agreement."
+          ],
+          "notEnough": [
+            "A model-reported confidence score as the only signal."
+          ],
+          "fix": "Combine deterministic signals (unique lookup, schema validity, source agreement, grounding) and let any failed signal hold the action regardless of model confidence."
+        },
+        {
+          "id": "uncertainty/missing-signal-policy",
+          "room": "uncertainty",
+          "title": "Define behavior when a signal is unavailable",
+          "action": "Set timeouts and a hold, reject, or human-escalation path for missing or conflicting evidence; never silently treat a missing score as a pass.",
+          "verify": "Disable an evidence service and inject contradictory inputs. The action must follow the documented conservative policy.",
+          "priority": false,
+          "provable": "code",
+          "lookFor": [
+            "Explicit timeouts and a conservative hold/reject path when an evidence source is unavailable or contradictory."
+          ],
+          "notEnough": [
+            "A missing score defaulting to pass; exceptions swallowed so execution continues."
+          ],
+          "fix": "Treat missing or conflicting evidence as a hold (never a pass), with a timeout and an escalation path."
+        },
+        {
+          "id": "uncertainty/calibration-and-load",
+          "room": "uncertainty",
+          "title": "Calibrate for errors and reviewer workload",
+          "action": "On labeled domain cases, choose thresholds against unsafe-pass and unnecessary-question rates; set review capacity and recalibration triggers.",
+          "verify": "Measure both rates on held-out cases and load-test the human queue. Breached limits must trigger review or a hold, not automatic threshold relaxation.",
+          "priority": true,
+          "provable": "test",
+          "lookFor": [
+            "Thresholds chosen against labelled cases, with measured unsafe-pass and unnecessary-question rates."
+          ],
+          "notEnough": [
+            "Magic-number thresholds with no data behind them."
+          ],
+          "fix": "Build a labelled set of ambiguous and clear cases, measure unsafe passes and unnecessary questions, and record the chosen thresholds with that evidence."
+        },
+        {
+          "id": "uncertainty/targeted-clarification",
+          "room": "uncertainty",
+          "title": "Ask for the specific missing fact",
+          "action": "Show the unresolved field, valid choices, and why it matters; validate the answer and limit repeated clarification attempts before escalation.",
+          "verify": "Test ambiguous, malformed, contradictory, and absent answers. No invalid answer may silently select a route or create an endless prompt loop.",
+          "priority": false,
+          "provable": "code",
+          "lookFor": [
+            "Clarification that names the missing field and the valid choices (e.g. 'order 4817 or 6234?'), validates the answer, and caps retries."
+          ],
+          "notEnough": [
+            "Generic 'please provide more context' prompts or unbounded clarification loops."
+          ],
+          "fix": "Generate a question naming the unresolved field and the valid options, validate the reply against them, and escalate after a fixed number of attempts."
+        },
+        {
+          "id": "uncertainty/safe-resumption",
+          "room": "uncertainty",
+          "title": "Persist holds and revalidate before resuming",
+          "action": "Store the pending action with a version and expiry; on answer, recheck evidence and resource state, then apply Permission separately when required.",
+          "verify": "Restart while waiting, then answer twice or after the target changes. Resume at most once with current evidence and the required authorization.",
+          "priority": true,
+          "provable": "code",
+          "lookFor": [
+            "Pending actions persisted (checkpointer, durable workflow, DB) with version and expiry; re-validation on resume; resume at most once."
+          ],
+          "notEnough": [
+            "Held state kept only in memory; resuming without re-checking evidence or permission."
+          ],
+          "fix": "Persist the held action with a version and expiry, re-run the gate on resume, consume the resume once, and still require Permission for consequential actions."
+        },
+        {
+          "id": "uncertainty/clarification-feedback",
+          "room": "uncertainty",
+          "title": "Close the loop with outcome evidence",
+          "action": "Record hold reasons, questions, answers, delays, and eventual outcomes; assign an owner to review recurring questions and missed errors.",
+          "verify": "Run an ambiguous consequential action end to end. Verify the hold, clarification, separate approval, ledger trail, and an alert when the chosen review limits are exceeded.",
+          "priority": false,
+          "provable": "process",
+          "lookFor": [
+            "Holds, questions, answers, delays, and outcomes recorded and reviewed by an owner."
+          ],
+          "notEnough": [
+            "Clarifications that leave no record."
+          ],
+          "fix": "Record each hold and clarification in the ledger and add a periodic review of recurring questions and missed errors."
+        }
+      ]
+    },
+    {
+      "id": "ledger",
+      "number": "05",
+      "title": "The Evidence Press",
+      "short": "Ledger",
+      "practice": "Action ledger enforcer",
+      "question": "Can every action be reconstructed?",
+      "accent": "#75a99c",
+      "summary": "Every external action creates an intent before execution and a protected outcome record afterward, forming evidence rather than disposable logs.",
+      "risks": [
+        "Unrecorded actions cannot be investigated",
+        "Logging afterward leaves a crash-sized gap",
+        "Mutable history cannot serve as evidence"
+      ],
+      "limitation": {
+        "title": "An intact record can still describe a harmful or misleading action.",
+        "body": "Hash links make changes detectable under a defined trust model; they do not make records truthful or prevent harm. A writer controlling the whole chain can rewrite it without an independent anchor. More evidence can also create a privacy liability.",
+        "companions": [
+          {
+            "roomId": "identity",
+            "reason": "Attach identities verified at the boundary instead of trusting the agent’s claimed author."
+          },
+          {
+            "roomId": "permission",
+            "reason": "Control both consequential actions and access to evidence; recording an action cannot authorize it."
+          },
+          {
+            "roomId": "reliability",
+            "reason": "Test crash recovery and integrity checks, and reconcile records against actual tool outcomes."
+          }
+        ]
+      },
+      "governance": {
+        "headline": "A decision can be reconstructed and explained.",
+        "mappings": [
+          {
+            "principle": "explainability",
+            "contribution": "Intent, inputs, rationale, and outcome give an explanation service the evidence to reconstruct what mattered in a decision.",
+            "evidence": "Decision inputs, meaningful reasons, and the linked outcome.",
+            "sources": [
+              "oecdTransparency",
+              "eu86"
+            ]
+          },
+          {
+            "principle": "accountability",
+            "contribution": "The linked receipts let a reviewer reconstruct what was attempted, who acted, and what happened, including interrupted work.",
+            "evidence": "Attributable, tamper-evident intent and outcome records.",
+            "sources": [
+              "oecdAccountability",
+              "eu12"
+            ]
+          },
+          {
+            "principle": "transparency",
+            "contribution": "A reliable history supports accurate accounts of system behaviour for operators and affected people.",
+            "evidence": "Relevant records translated into audience-appropriate information.",
+            "sources": [
+              "oecdTransparency",
+              "eu13"
+            ]
+          }
+        ],
+        "remaining": "A log is evidence, not an explanation by itself. Provide accessible reasons and review routes. Minimise and redact personal data, and define retention; append-only storage does not justify keeping everything forever."
+      },
+      "checks": [
+        {
+          "id": "ledger/event-contract",
+          "room": "ledger",
+          "title": "Define a versioned action-event schema",
+          "action": "Specify action ID, event type, verified identities, timestamps, policy and build versions, redacted inputs, decision evidence, and outcome references.",
+          "verify": "Validate sample intent, success, failure, and unknown-outcome events against the schema. Missing correlation or identity fields must be rejected.",
+          "priority": false,
+          "provable": "code",
+          "lookFor": [
+            "A versioned schema for action events: action ID, event type, verified identities, timestamps, policy/build versions, redacted inputs, outcome references."
+          ],
+          "notEnough": [
+            "Unstructured log lines or print statements."
+          ],
+          "fix": "Define a versioned action-event schema and emit intent, success, failure, and unknown events that validate against it."
+        },
+        {
+          "id": "ledger/durable-intent",
+          "room": "ledger",
+          "title": "Acknowledge durable intent before execution",
+          "action": "Place a durable intent write ahead of each governed external side effect; hold the action when the ledger cannot acknowledge that write.",
+          "verify": "Make storage unavailable before the intent acknowledgment. The external action must not execute.",
+          "priority": true,
+          "provable": "code",
+          "lookFor": [
+            "An intent record written and acknowledged before each consequential external call; the call is held if the write fails (write-ahead / outbox pattern)."
+          ],
+          "notEnough": [
+            "Logging only after the call completes; fire-and-forget logging."
+          ],
+          "fix": "Write and await a durable intent record before every consequential call, and block the call if the write is not acknowledged."
+        },
+        {
+          "id": "ledger/outcome-reconciliation",
+          "room": "ledger",
+          "title": "Reconcile incomplete and ambiguous outcomes",
+          "action": "Append outcomes under the same action ID; set a deadline for unresolved intents and use tool receipts or idempotency keys to reconcile them safely.",
+          "verify": "Crash after the external write but before the outcome append. Recovery must identify the actual result or mark it unknown without blindly repeating the effect.",
+          "priority": true,
+          "provable": "code",
+          "lookFor": [
+            "Outcomes appended under the same action ID, including `unknown`; a reconciler for stale intents using provider receipts or idempotency keys."
+          ],
+          "notEnough": [
+            "Treating timeouts as failures and retrying blindly."
+          ],
+          "fix": "Append success/failure/unknown outcomes under the action ID and add a reconciler that resolves stale intents via provider receipts or idempotency keys."
+        },
+        {
+          "id": "ledger/write-access-boundary",
+          "room": "ledger",
+          "title": "Separate append, read, and administration rights",
+          "action": "Deny the agent update/delete access, isolate storage administration, and enforce approved retention controls on the evidence store.",
+          "verify": "Try to alter and delete an existing event as the agent and as a reader. Both must fail; authorized administrative changes must be auditable.",
+          "priority": false,
+          "provable": "code",
+          "lookFor": [
+            "Append-only storage or permissions: the agent cannot update/delete records; admin and read rights separated; retention configured."
+          ],
+          "notEnough": [
+            "Audit rows in the same writable table the agent's credentials can update or delete."
+          ],
+          "fix": "Store action events in an append-only store (or grant the agent insert-only rights) and separate read and admin access."
+        },
+        {
+          "id": "ledger/independent-integrity",
+          "room": "ledger",
+          "title": "Anchor integrity outside the writer’s control",
+          "action": "Hash-link events and periodically sign or checkpoint chain roots into a separately controlled store; document the interval and unanchored-tail exposure.",
+          "verify": "Alter, remove, or reorder an anchored event, then rewrite the local chain. Verification against the independent checkpoint must detect the inconsistency.",
+          "priority": true,
+          "provable": "code",
+          "lookFor": [
+            "Hash-chained events with periodic checkpoints or signatures anchored in a separately controlled store (e.g. a confidential/immutable ledger)."
+          ],
+          "notEnough": [
+            "Hashes stored only alongside the data the same writer controls."
+          ],
+          "fix": "Hash-link events and periodically anchor the chain root in a store the agent's writer cannot modify, documenting the anchoring interval."
+        },
+        {
+          "id": "ledger/data-minimization",
+          "room": "ledger",
+          "title": "Set redaction, access, and retention rules",
+          "action": "Allowlist necessary fields, redact secrets before persistence, restrict readers, and define expiry/deletion handling with privacy and security owners.",
+          "verify": "Inject a test secret and personal-data marker. Forbidden values must not persist; test reader isolation and the approved retention workflow.",
+          "priority": false,
+          "provable": "code",
+          "lookFor": [
+            "Field allowlists or redaction before persistence/telemetry; secrets and PII scrubbed; retention rules."
+          ],
+          "notEnough": [
+            "Logging full prompts, tool payloads, or customer messages by default."
+          ],
+          "fix": "Add a redaction step (field allowlist + secret/PII scrubbing) before anything reaches logs, traces, or the ledger, and set retention."
+        },
+        {
+          "id": "ledger/investigation-query",
+          "room": "ledger",
+          "title": "Make one action reconstructable",
+          "action": "Provide an investigation query joining identity, intent, approval or clarification, execution receipt, and outcome; separate observed facts from model-provided reasons.",
+          "verify": "Give a reviewer an action ID. They must retrieve the complete linked history and identify missing evidence without treating a generated rationale as proof.",
+          "priority": false,
+          "provable": "code",
+          "lookFor": [
+            "A query, script, or tool that reconstructs one action by ID across identity, intent, approval/clarification, execution receipt, and outcome."
+          ],
+          "notEnough": [
+            "Correlation IDs that exist but nothing that joins them."
+          ],
+          "fix": "Provide an investigation query or CLI that takes an action ID and returns the linked history, marking missing evidence and model-supplied reasons separately."
+        },
+        {
+          "id": "ledger/evidence-failure-drill",
+          "room": "ledger",
+          "title": "Exercise evidence failure across the controls",
+          "action": "Define owners and alerts for aged intents, integrity failures, and verification outages; connect critical evidence failures to a hold or supervised stop.",
+          "verify": "Inject a broken checkpoint or overdue intent in staging. Confirm the alert, preserved evidence, assigned investigation, and the configured hold or stop.",
+          "priority": false,
+          "provable": "process",
+          "lookFor": [
+            "Alerts on aged intents, integrity failures, or ledger outages, wired to a hold or stop."
+          ],
+          "notEnough": [
+            "Ledger write failures that are logged and ignored."
+          ],
+          "fix": "Alert on overdue intents and integrity failures and connect critical evidence failures to a hold or supervised stop; rehearse it in staging."
+        }
+      ]
+    },
+    {
+      "id": "shutdown",
+      "number": "06",
+      "title": "The Emergency Power Room",
+      "short": "Shutdown",
+      "practice": "Circuit breaker & kill switch",
+      "question": "Can the agent be stopped safely?",
+      "accent": "#d86459",
+      "summary": "Independent controls halt the agent, cancel work, revoke authority, settle records, and notify its owner in a tested sequence.",
+      "risks": [
+        "A runaway loop keeps acting or spending",
+        "A stopped process leaves credentials alive",
+        "Hard kills cannot run application cleanup"
+      ],
+      "limitation": {
+        "title": "Stopping now cannot undo what already happened.",
+        "body": "A kill switch can contain further work, but a completed transfer or sent message remains. In-flight effects, hanging cleanup, and a failed control plane can leave uncertainty. Safe recovery requires evidence and a deliberate restart decision.",
+        "companions": [
+          {
+            "roomId": "permission",
+            "reason": "Constrain irreversible effects before they happen and require authorization for consequential recovery actions."
+          },
+          {
+            "roomId": "identity",
+            "reason": "Target the affected instance’s authority without losing track of who operated it."
+          },
+          {
+            "roomId": "ledger",
+            "reason": "Identify what completed, failed, or remains unknown so an owner can reconcile the incident."
+          }
+        ]
+      },
+      "governance": {
+        "headline": "People retain the power to stop the system.",
+        "mappings": [
+          {
+            "principle": "oversight",
+            "contribution": "The independent breaker can interrupt the agent without requiring its cooperation and hold it in a stopped state.",
+            "evidence": "An independently accessible stop and tested intervention paths.",
+            "sources": [
+              "eu14"
+            ]
+          },
+          {
+            "principle": "safety",
+            "contribution": "Stopping work and revoking credentials contains further action, rather than leaving authority alive after the engine stops.",
+            "evidence": "Cancellation and revocation results, followed by settlement and notification.",
+            "sources": [
+              "oecdSafety",
+              "eu15"
+            ]
+          },
+          {
+            "principle": "reliability",
+            "contribution": "A tested shutdown path makes abnormal conditions a designed operating case, with bounded cleanup and deliberate recovery.",
+            "evidence": "Termination tests, cleanup deadlines, and recovery procedures.",
+            "sources": [
+              "eu15",
+              "nist"
+            ]
+          }
+        ],
+        "remaining": "A stop cannot undo completed harm. Test in-flight effects, hard failures, external revocation, and recovery, and assign an owner to investigate the incident."
+      },
+      "checks": [
+        {
+          "id": "shutdown/independent-control",
+          "room": "shutdown",
+          "title": "Provision an independent stop path",
+          "action": "Expose an authenticated stop through a supervisor or control plane outside the agent process; define who can invoke it and how to reach it during an outage.",
+          "verify": "Deadlock or disconnect the agent in staging. An authorized operator must still be able to activate the external stop; unauthorized callers must fail.",
+          "priority": true,
+          "provable": "code",
+          "lookFor": [
+            "An authenticated stop endpoint, flag, or control-plane action outside the agent's reasoning loop (feature flag, DB flag, admin API, orchestration terminate)."
+          ],
+          "notEnough": [
+            "Ctrl-C, redeploying, or asking the agent to stop."
+          ],
+          "fix": "Add an operator-only stop control (durable flag + authenticated admin endpoint) that does not depend on the agent's cooperation."
+        },
+        {
+          "id": "shutdown/stop-before-dispatch",
+          "room": "shutdown",
+          "title": "Check stop state before dispatch",
+          "action": "Gate scheduling, retries, queue consumers, and tool calls on a durable stopped state; register shutdown handlers before agent work begins.",
+          "verify": "Stop during a queued workflow. No new step may dispatch after the enforced stop boundary, including after process restart.",
+          "priority": true,
+          "provable": "code",
+          "lookFor": [
+            "The durable stop state checked before each step, retry, queue consumption, and tool call; signal handlers registered before work starts."
+          ],
+          "notEnough": [
+            "A stop flag checked only at startup or held only in memory."
+          ],
+          "fix": "Check the durable stop flag in the dispatch loop and inside every consequential tool wrapper, so it also holds across restarts."
+        },
+        {
+          "id": "shutdown/enforced-limits",
+          "room": "shutdown",
+          "title": "Set enforceable runtime limits",
+          "action": "Configure step, error, elapsed-time, and spend limits in the supervisor; assign owners and explicit escalation behavior for breached limits.",
+          "verify": "Trigger each limit in staging. Further dispatch must stop within the documented deadline, with a reason recorded for the operator.",
+          "priority": false,
+          "provable": "code",
+          "lookFor": [
+            "Hard limits on steps/iterations, errors, wall time, tokens, and spend (e.g. max_iterations, recursion_limit, budget/quota/rate limits) that stop dispatch."
+          ],
+          "notEnough": [
+            "Limits that only log or alert; unbounded loops."
+          ],
+          "fix": "Set explicit step, error, time, and spend limits enforced by the runner (not the model), with the stop reason recorded."
+        },
+        {
+          "id": "shutdown/cancel-inflight",
+          "room": "shutdown",
+          "title": "Propagate cancellation and track in-flight work",
+          "action": "Pass cancellation to tools and workers, set deadlines, and inventory providers that cannot cancel an accepted request.",
+          "verify": "Stop during a slow tool call and a non-cancellable request. Cancel the former; track the latter to a confirmed or explicitly unknown outcome.",
+          "priority": false,
+          "provable": "code",
+          "lookFor": [
+            "Cancellation tokens/signals and deadlines passed to tools and workers; tracking of non-cancellable requests to an outcome."
+          ],
+          "notEnough": [
+            "Killing the loop while tool calls run on with no timeout."
+          ],
+          "fix": "Pass cancellation and deadlines into every tool call and record in-flight requests that cannot be cancelled so they reconcile to a known outcome."
+        },
+        {
+          "id": "shutdown/authority-revocation",
+          "room": "shutdown",
+          "title": "Revoke authority through the supervisor",
+          "action": "Revoke instance credentials and pending approvals before best-effort application cleanup; bound residual token validity when immediate revocation is unavailable.",
+          "verify": "Kill the process without running its handlers. Saved credentials and approvals must become unusable within the documented revocation bound.",
+          "priority": true,
+          "provable": "code",
+          "lookFor": [
+            "Stop procedure that revokes or disables the agent's credentials and invalidates pending approvals."
+          ],
+          "notEnough": [
+            "Stopping compute while credentials and approvals stay valid."
+          ],
+          "fix": "Make the stop path disable the agent's credentials/role assignments and invalidate pending approvals before best-effort cleanup."
+        },
+        {
+          "id": "shutdown/bounded-cleanup",
+          "room": "shutdown",
+          "title": "Make cleanup repeatable and time-bounded",
+          "action": "Implement idempotent cleanup steps with independent deadlines and escalation; prevent one hanging step from blocking revocation or incident notification.",
+          "verify": "Invoke shutdown twice and hang one cleanup dependency. The procedure must reach its deadline, preserve stop state, and report unfinished work.",
+          "priority": false,
+          "provable": "code",
+          "lookFor": [
+            "Idempotent cleanup steps with individual deadlines that cannot block revocation or notification."
+          ],
+          "notEnough": [
+            "A single shutdown hook that can hang indefinitely."
+          ],
+          "fix": "Split shutdown into idempotent steps with per-step deadlines, run revocation and notification first, and report unfinished steps."
+        },
+        {
+          "id": "shutdown/reconcile-incident",
+          "room": "shutdown",
+          "title": "Reconcile effects and notify an owner",
+          "action": "Compare in-flight work with ledger intents and tool receipts; list completed, failed, and unknown effects with an assigned incident owner and remediation plan.",
+          "verify": "Stop immediately after a test side effect. The incident report must include it even if the agent never appended its outcome.",
+          "priority": false,
+          "provable": "code",
+          "lookFor": [
+            "After a stop: compare in-flight work with ledger intents and receipts, list completed/failed/unknown effects, and notify an owner."
+          ],
+          "notEnough": [
+            "Stopping silently with no owner notification or reconciliation."
+          ],
+          "fix": "On stop, generate an incident summary from ledger intents vs receipts (completed / failed / unknown) and notify the agent's owner."
+        },
+        {
+          "id": "shutdown/controlled-restart",
+          "room": "shutdown",
+          "title": "Drill termination and deliberate recovery",
+          "action": "Exercise graceful stop, hard kill, network loss, and supervisor restart; require an authorized recovery decision and fresh scoped credentials before resuming.",
+          "verify": "The agent must stay stopped across each restart. After authorized recovery, old credentials, approvals, and queued work must not silently resume.",
+          "priority": false,
+          "provable": "process",
+          "lookFor": [
+            "Tests/runbooks for graceful stop, hard kill, and restart; the agent stays stopped until an authorized recovery with fresh credentials."
+          ],
+          "notEnough": [
+            "The agent auto-resuming queued work after a restart."
+          ],
+          "fix": "Persist the stopped state across restarts, require an authorized recovery action with fresh credentials, and drill hard-kill and restart in staging."
+        }
+      ]
+    }
+  ],
+  "discovery": {
+    "concepts": {
+      "identity": [
+        "agent[_-]?id",
+        "instance[_-]?id",
+        "session[_-]?id",
+        "thread[_-]?id",
+        "conversation[_-]?id",
+        "principal",
+        "managed[_ -]?identity",
+        "workload[_ -]?identity",
+        "DefaultAzureCredential",
+        "ManagedIdentityCredential",
+        "jwks?",
+        "\\bjwt\\b",
+        "audience",
+        "issuer",
+        "oidc",
+        "spiffe",
+        "client[_-]?credentials",
+        "api[_-]?key",
+        "Bearer",
+        "\\bowner\\b"
+      ],
+      "reliability": [
+        "\\bevals?\\b",
+        "evaluat",
+        "golden",
+        "test[_-]?cases?",
+        "dataset",
+        "threshold",
+        "promptfoo",
+        "deepeval",
+        "ragas",
+        "langsmith",
+        "braintrust",
+        "inspect_ai",
+        "BaseModel",
+        "TypedDict",
+        "zod",
+        "json[_ -]?schema",
+        "contract",
+        "prompt[_-]?version",
+        "model[_-]?version",
+        "drift",
+        "idempoten"
+      ],
+      "permission": [
+        "approv",
+        "human[_ -]?in[_ -]?the[_ -]?loop",
+        "\\bhitl\\b",
+        "interrupt",
+        "confirm",
+        "allow[_-]?list",
+        "deny[_-]?list",
+        "\\bpolicy\\b",
+        "authori[sz]",
+        "require[sd]?_approval",
+        "\\bnonce\\b",
+        "\\bjti\\b",
+        "single[_ -]?use",
+        "egress",
+        "\\bscopes?\\b"
+      ],
+      "uncertainty": [
+        "confidence",
+        "uncertain",
+        "ambigu",
+        "clarif",
+        "ask[_-]?(the[_-]?)?user",
+        "human[_-]?input",
+        "disambig",
+        "grounded(ness)?",
+        "\\bhold\\b",
+        "pending",
+        "resume",
+        "external[_ -]?event",
+        "wait[_-]?for"
+      ],
+      "ledger": [
+        "\\baudit",
+        "ledger",
+        "append[_ -]?only",
+        "event[_ -]?store",
+        "outbox",
+        "\\bintent\\b",
+        "\\boutcome\\b",
+        "opentelemetry",
+        "\\botel\\b",
+        "tracer",
+        "\\bspan\\b",
+        "app(lication)?[_ ]?insights",
+        "hash[_ -]?chain",
+        "sha256",
+        "redact",
+        "\\bpii\\b",
+        "retention",
+        "correlation[_-]?id",
+        "action[_-]?id",
+        "request[_-]?id"
+      ],
+      "shutdown": [
+        "kill[_ -]?switch",
+        "circuit[_ -]?breaker",
+        "SIGTERM",
+        "SIGINT",
+        "signal\\.signal",
+        "cancel",
+        "abort",
+        "deadline",
+        "timeout",
+        "max[_-]?(steps|iterations|turns)",
+        "recursion[_-]?limit",
+        "budget",
+        "rate[_ -]?limit",
+        "quota",
+        "revoke",
+        "terminate",
+        "shutdown",
+        "graceful",
+        "stop[_-]?(flag|state|event)"
+      ]
+    },
+    "consequentialPatterns": [
+      "refund",
+      "payout",
+      "transfer",
+      "\\bcharge\\b",
+      "payment",
+      "invoice",
+      "\\bwire\\b",
+      "stripe",
+      "send[_-]?(email|mail|message|sms|notification)",
+      "smtp",
+      "sendgrid",
+      "twilio",
+      "chat\\.postMessage",
+      "\\bdelete\\b",
+      "\\bdrop\\s+table\\b",
+      "truncate",
+      "rmtree",
+      "unlink",
+      "rm -rf",
+      "grant",
+      "assign[_-]?role",
+      "set[_-]?permission",
+      "deploy",
+      "publish",
+      "subprocess",
+      "os\\.system",
+      "exec\\(",
+      "eval\\(",
+      "execute[_-]?sql",
+      "shell",
+      "\\.(insert|upsert)\\(",
+      "table\\([^)]*\\)\\s*\\.\\s*(update|delete)\\(",
+      "\\bINSERT\\s+INTO\\b",
+      "\\bUPDATE\\s+\\w+\\s+SET\\b",
+      "\\bDELETE\\s+FROM\\b",
+      "session\\.(add|delete|commit)\\(",
+      "\\.objects\\.(create|update|delete)",
+      "bulk_write",
+      "put_item",
+      "\\.upload\\(",
+      "messages\\.create\\(",
+      "chat\\.completions\\.create\\(",
+      "responses\\.create\\(",
+      "generate_content\\("
+    ],
+    "toolPatterns": [
+      "@tool\\b",
+      "@function_tool",
+      "@kernel_function",
+      "@mcp\\.tool",
+      "@ai_function",
+      "FunctionTool",
+      "StructuredTool",
+      "BaseTool",
+      "Tool\\(",
+      "tool\\(",
+      "bind_tools",
+      "ToolNode",
+      "tools\\s*=\\s*\\[",
+      "register_function",
+      "@agent\\.tool",
+      "@server\\.tool",
+      "createTool",
+      "defineTool"
+    ],
+    "frameworkPatterns": {
+      "LangGraph": [
+        "langgraph",
+        "@langchain/langgraph"
+      ],
+      "LangChain": [
+        "langchain"
+      ],
+      "LlamaIndex": [
+        "llama_index",
+        "llama-index",
+        "llamaindex"
+      ],
+      "CrewAI": [
+        "crewai"
+      ],
+      "AutoGen / AG2": [
+        "autogen",
+        "\\bag2\\b"
+      ],
+      "Microsoft Agent Framework": [
+        "agent_framework",
+        "agent-framework",
+        "Microsoft\\.Agents\\.AI"
+      ],
+      "Semantic Kernel": [
+        "semantic_kernel",
+        "semantic-kernel",
+        "Microsoft\\.SemanticKernel"
+      ],
+      "OpenAI Agents SDK": [
+        "openai-agents",
+        "from agents import",
+        "@openai/agents"
+      ],
+      "Pydantic AI": [
+        "pydantic_ai",
+        "pydantic-ai"
+      ],
+      "smolagents": [
+        "smolagents"
+      ],
+      "Google ADK": [
+        "google\\.adk",
+        "google-adk"
+      ],
+      "Strands Agents": [
+        "strands-agents",
+        "from strands"
+      ],
+      "Haystack": [
+        "haystack"
+      ],
+      "DSPy": [
+        "\\bdspy\\b"
+      ],
+      "Anthropic SDK": [
+        "\\banthropic\\b",
+        "@anthropic-ai/sdk",
+        "claude_agent_sdk",
+        "claude-agent-sdk"
+      ],
+      "OpenAI SDK": [
+        "\\bopenai\\b"
+      ],
+      "Vercel AI SDK": [
+        "from ['\"]ai['\"]",
+        "@ai-sdk/"
+      ],
+      "Mastra": [
+        "@mastra/"
+      ],
+      "MCP": [
+        "\\bmcp\\b",
+        "@modelcontextprotocol/"
+      ],
+      "Azure AI Foundry": [
+        "azure-ai-projects",
+        "azure\\.ai\\.projects",
+        "azure-ai-agents",
+        "azure\\.ai\\.agents"
+      ],
+      "Temporal / Durable workflows": [
+        "temporalio",
+        "azure-functions-durable",
+        "durabletask"
+      ]
+    }
+  }
+}

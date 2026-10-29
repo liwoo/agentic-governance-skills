@@ -1,0 +1,1664 @@
+{
+  "schemaVersion": 1,
+  "catalogVersion": "de86dddfc6a8",
+  "assessedAt": "2026-10-29T12:00:00.000Z",
+  "assessor": "Claude Code (claude-opus-5-5)",
+  "project": {
+    "name": "northstar-refunds",
+    "summary": "LangGraph customer-support agent for Northstar that looks up orders, issues refunds through Stripe, and emails customers through SendGrid, served over a FastAPI `/chat` + `/resume` API.",
+    "languages": [
+      "Python"
+    ],
+    "frameworks": [
+      "LangGraph",
+      "LangChain",
+      "FastAPI",
+      "OpenTelemetry"
+    ]
+  },
+  "agents": [
+    {
+      "name": "support graph",
+      "entrypoint": "northstar/agent.py:42",
+      "description": "StateGraph: model → confirm → tools loop with an in-memory checkpointer; exposed by `northstar/server.py`."
+    }
+  ],
+  "consequentialActions": [
+    {
+      "name": "issue_refund",
+      "effect": "money",
+      "location": "northstar/tools.py:33",
+      "note": "Calls `stripe.Refund.create` with a model-supplied amount; retried up to 3 times."
+    },
+    {
+      "name": "send_customer_email",
+      "effect": "communication",
+      "location": "northstar/tools.py:48",
+      "note": "Sends arbitrary model-written email to any address via SendGrid; no gate at all."
+    },
+    {
+      "name": "lookup_order",
+      "effect": "data",
+      "location": "northstar/tools.py:24",
+      "note": "Read-only, but returns customer order data chosen by fuzzy name match."
+    }
+  ],
+  "checks": [
+    {
+      "id": "identity/owner-contract",
+      "status": "missing",
+      "confidence": "high",
+      "finding": "`Settings` defines model, keys, and URLs but no accountable owner or agent build; the `pyproject.toml` version is never read at runtime, so nothing fails when identity is absent.",
+      "evidence": [
+        {
+          "path": "northstar/config.py",
+          "line": 6,
+          "note": "Settings has no owner / agent name / build fields"
+        }
+      ],
+      "fix": {
+        "summary": "Add an identity block (owner, agent name, build version) to `Settings` and refuse to start when any field is empty.",
+        "steps": [
+          "Add `owner`, `agent_name`, and `build` fields to `Settings` in `northstar/config.py`, reading `build` from package metadata (`importlib.metadata.version`).",
+          "Validate them in a `Settings.__post_init__` that raises on empty values.",
+          "Test: constructing `Settings` without `NORTHSTAR_OWNER` raises a clear error."
+        ],
+        "files": [
+          "northstar/config.py"
+        ]
+      }
+    },
+    {
+      "id": "identity/instance-lifecycle",
+      "status": "partial",
+      "confidence": "high",
+      "finding": "A per-conversation `thread_id` exists, but there is no process instance ID, and the session reaches `issue_refund` only as a model-filled tool argument (`session_id: str = \"\"`), so the model decides which session a refund is logged under.",
+      "evidence": [
+        {
+          "path": "northstar/agent.py",
+          "line": 54,
+          "note": "thread_id generated per run"
+        },
+        {
+          "path": "northstar/tools.py",
+          "line": 33,
+          "note": "session_id is a tool parameter the model fills, default empty"
+        }
+      ],
+      "fix": {
+        "summary": "Generate an instance ID at startup and inject the real thread ID into tools from the graph config instead of letting the model supply it.",
+        "steps": [
+          "Create `INSTANCE_ID = uuid4()` at import time in a new `northstar/identity.py`.",
+          "Remove `session_id` from the `issue_refund` signature; read `thread_id` from the LangGraph `RunnableConfig` (`config[\"configurable\"][\"thread_id\"]`) via an injected `config` parameter.",
+          "Attach `instance.id` and `session.id` to every span in `northstar/telemetry.py`."
+        ],
+        "files": [
+          "northstar/tools.py",
+          "northstar/telemetry.py",
+          "northstar/agent.py"
+        ]
+      }
+    },
+    {
+      "id": "identity/trusted-issuer",
+      "status": "missing",
+      "severity": "high",
+      "confidence": "high",
+      "finding": "Every outbound call uses one long-lived `SUPPORT_AUTOMATION_KEY`. Its comment says the returns bot and the nightly reconciler use the same key, so a call can't be traced to this agent.",
+      "evidence": [
+        {
+          "path": "northstar/config.py",
+          "line": 10,
+          "note": "shared key comment"
+        },
+        {
+          "path": "northstar/tools.py",
+          "line": 13,
+          "note": "static bearer key plus a self-declared `X-Agent-Name` header"
+        }
+      ],
+      "fix": {
+        "summary": "Give the support agent its own workload identity and fetch short-lived tokens from the identity provider instead of a shared static key.",
+        "steps": [
+          "Register a dedicated principal for the support agent (cloud managed identity or OIDC client) separate from the returns bot and reconciler.",
+          "Replace `automation_key` with a token provider (e.g. `azure.identity.DefaultAzureCredential().get_token(...)` or an OAuth client-credentials call) used by a shared HTTP client.",
+          "Delete `SUPPORT_AUTOMATION_KEY` once all three automations have their own identities."
+        ],
+        "files": [
+          "northstar/config.py",
+          "northstar/tools.py"
+        ]
+      }
+    },
+    {
+      "id": "identity/verify-claims",
+      "status": "missing",
+      "severity": "critical",
+      "confidence": "high",
+      "finding": "Anyone can call `/chat` and `/resume`, including the endpoint that approves refunds. Outbound calls identify the agent with an `X-Agent-Name` header that any caller can forge.",
+      "evidence": [
+        {
+          "path": "northstar/server.py",
+          "line": 20,
+          "note": "/chat has no auth dependency"
+        },
+        {
+          "path": "northstar/server.py",
+          "line": 25,
+          "note": "/resume (which approves refunds) has no auth dependency"
+        },
+        {
+          "path": "northstar/tools.py",
+          "line": 13,
+          "note": "unsigned X-Agent-Name header"
+        }
+      ],
+      "fix": {
+        "summary": "Require and validate a signed token (signature, issuer, audience, expiry) on `/chat` and `/resume`, and send signed tokens instead of name headers downstream.",
+        "steps": [
+          "Add a FastAPI dependency in `northstar/server.py` that validates a JWT against the IdP's JWKS (`iss`, `aud`, `exp`, required claims).",
+          "Apply it to both routes; `/resume` additionally requires a reviewer role (see Permission).",
+          "Test: altered, expired, and wrong-audience tokens get 401 and never reach `agent_app.invoke`."
+        ],
+        "files": [
+          "northstar/server.py"
+        ]
+      }
+    },
+    {
+      "id": "identity/short-lived-revocable",
+      "status": "missing",
+      "confidence": "high",
+      "finding": "All credentials are static environment variables with no expiry, rotation, or way to disable just this agent.",
+      "evidence": [
+        {
+          "path": "northstar/config.py",
+          "line": 8,
+          "note": "static STRIPE/SENDGRID/automation keys"
+        }
+      ],
+      "fix": {
+        "summary": "Move to short-lived tokens from the workload identity and document a maximum lifetime and the per-agent disable procedure.",
+        "steps": [
+          "Use restricted, per-agent Stripe and SendGrid keys stored in a secret manager with rotation.",
+          "Document the token lifetime and how to disable this agent's principal in `docs/identity.md`."
+        ],
+        "files": [
+          "northstar/config.py"
+        ]
+      }
+    },
+    {
+      "id": "identity/close-bypasses",
+      "status": "missing",
+      "confidence": "high",
+      "finding": "Each tool uses its own client (raw `httpx`, the Stripe SDK, the SendGrid SDK). There is no single place to attach identity or policy to outbound calls.",
+      "evidence": [
+        {
+          "path": "northstar/tools.py",
+          "line": 26,
+          "note": "raw httpx call"
+        },
+        {
+          "path": "northstar/tools.py",
+          "line": 37,
+          "note": "direct Stripe SDK call"
+        },
+        {
+          "path": "northstar/tools.py",
+          "line": 51,
+          "note": "direct SendGrid SDK call"
+        }
+      ],
+      "fix": {
+        "summary": "Route every external call through one governed client module and forbid raw client imports in tool code.",
+        "steps": [
+          "Create `northstar/governance/clients.py` exposing `orders_client`, `refunds_client`, `email_client` that attach identity, deadlines, and policy checks.",
+          "Refactor `northstar/tools.py` to use only those clients.",
+          "Add a Ruff `banned-api` rule (or a small AST test) that fails CI if `httpx`, `stripe`, or `sendgrid` is imported outside `northstar/governance/`."
+        ],
+        "files": [
+          "northstar/tools.py",
+          "pyproject.toml"
+        ]
+      }
+    },
+    {
+      "id": "identity/record-verified-identity",
+      "status": "partial",
+      "confidence": "high",
+      "finding": "Tool spans carry `session.id` and `tool.name`, but the session ID is model-supplied, and there is no owner, build, instance, or action ID to tie an intent to its outcome.",
+      "evidence": [
+        {
+          "path": "northstar/telemetry.py",
+          "line": 19,
+          "note": "only session.id and tool.name attributes"
+        }
+      ],
+      "fix": {
+        "summary": "Stamp every span and ledger record with owner, build, instance, verified session, and a per-action ID.",
+        "steps": [
+          "Generate an `action_id` when a consequential tool call is proposed and pass it through approval, execution, and outcome.",
+          "Set owner/build/instance/session/action attributes in a span processor so no call site can forget them.",
+          "Make sure `Authorization` values are never logged."
+        ],
+        "files": [
+          "northstar/telemetry.py",
+          "northstar/tools.py"
+        ]
+      }
+    },
+    {
+      "id": "identity/compromised-identity-drill",
+      "status": "missing",
+      "severity": "low",
+      "confidence": "medium",
+      "finding": "There is no test or runbook exercising a valid-but-compromised identity, and the prerequisites (per-agent identity, revocation, permission denial) do not exist yet.",
+      "evidence": [],
+      "fix": {
+        "summary": "After per-agent identity and the stop path exist, add a staging drill that combines a valid identity with a forbidden action and then revokes it.",
+        "steps": [
+          "Write `tests/drills/test_compromised_identity.py`: a valid test token attempts an unapproved refund and must be denied and recorded.",
+          "Revoke the test instance and assert subsequent calls fail within the documented deadline."
+        ],
+        "files": [
+          "tests/drills/test_compromised_identity.py"
+        ]
+      }
+    },
+    {
+      "id": "reliability/workflow-contracts",
+      "status": "partial",
+      "confidence": "medium",
+      "finding": "Graph state is a `TypedDict` and tools have typed parameters, but tool outputs are untyped dicts (`lookup_order` returns `{}` on no match) and there is no documented step map with owners or failure policy.",
+      "evidence": [
+        {
+          "path": "northstar/agent.py",
+          "line": 16,
+          "note": "TypedDict state"
+        },
+        {
+          "path": "northstar/tools.py",
+          "line": 29,
+          "note": "untyped dict result, `{}` on miss"
+        }
+      ],
+      "fix": {
+        "summary": "Give each tool a typed result model and document the model → confirm → tools graph with an owner and failure policy per step.",
+        "steps": [
+          "Define Pydantic models `OrderLookupResult`, `RefundResult`, `EmailResult` and return them from the tools.",
+          "Add `docs/workflow.md` listing each node, its contract, owner, and what happens on failure."
+        ],
+        "files": [
+          "northstar/tools.py",
+          "docs/workflow.md"
+        ]
+      }
+    },
+    {
+      "id": "reliability/stage-test-suites",
+      "status": "partial",
+      "confidence": "high",
+      "finding": "The only tests cover the `refundable_amount` helper. Nothing tests `lookup_order`, `issue_refund`, `send_customer_email`, the `confirm_refund` node, or routing in isolation.",
+      "evidence": [
+        {
+          "path": "tests/test_tools.py",
+          "line": 1,
+          "note": "two tests for one helper"
+        }
+      ],
+      "fix": {
+        "summary": "Add an isolated test module per stage with mocked neighbours.",
+        "steps": [
+          "Create `tests/test_lookup_order.py`, `tests/test_issue_refund.py`, `tests/test_confirm_node.py`, and `tests/test_routing.py` with `respx`/`unittest.mock` fakes for HTTP, Stripe, and SendGrid.",
+          "Inject a known defect (e.g. wrong edge) and confirm the stage test fails."
+        ],
+        "files": [
+          "tests/"
+        ]
+      }
+    },
+    {
+      "id": "reliability/deterministic-invariants",
+      "status": "partial",
+      "severity": "critical",
+      "confidence": "high",
+      "finding": "`issue_refund` never calls `refundable_amount`, so the model's `amount_pence` goes straight to Stripe and the 30-day rule is never applied. The helper's tests also skip the day-30 boundary.",
+      "evidence": [
+        {
+          "path": "tests/test_tools.py",
+          "line": 6,
+          "note": "no exact-boundary or partial-refund cases"
+        },
+        {
+          "path": "northstar/tools.py",
+          "line": 16,
+          "note": "policy helper exists…"
+        },
+        {
+          "path": "northstar/tools.py",
+          "line": 37,
+          "note": "…but the refund uses the model-supplied amount"
+        }
+      ],
+      "fix": {
+        "summary": "Compute the refund amount in code from the order and policy, cap the model's request at it, and test the boundaries.",
+        "steps": [
+          "In `issue_refund`, load the order server-side and reject any `amount_pence` above `refundable_amount(order.total, order.delivered_on, today)`.",
+          "Add tests for day 30, day 31, zero, and partial amounts (Hypothesis property test: refund ≤ order total).",
+          "Block release in CI when these fail."
+        ],
+        "files": [
+          "northstar/tools.py",
+          "tests/test_tools.py"
+        ]
+      }
+    },
+    {
+      "id": "reliability/io-failure-tests",
+      "status": "missing",
+      "severity": "critical",
+      "confidence": "high",
+      "finding": "`issue_refund` retries `stripe.Refund.create` up to three times on connection errors without an idempotency key, so a timeout after Stripe accepted the first call can refund the customer twice. No failure-injection tests exist.",
+      "evidence": [
+        {
+          "path": "northstar/tools.py",
+          "line": 35,
+          "note": "blind retry loop around a money movement"
+        }
+      ],
+      "fix": {
+        "summary": "Pass a stable idempotency key derived from the action ID to Stripe and test timeout-after-write recovery.",
+        "steps": [
+          "Call `stripe.Refund.create(..., idempotency_key=action_id)`.",
+          "Add a test that raises `APIConnectionError` after a simulated successful write and asserts exactly one refund.",
+          "Add timeout and malformed-response tests for `lookup_order`."
+        ],
+        "files": [
+          "northstar/tools.py",
+          "tests/test_issue_refund.py"
+        ]
+      }
+    },
+    {
+      "id": "reliability/model-eval-thresholds",
+      "status": "partial",
+      "confidence": "high",
+      "finding": "`evals/` has three cases, including the two-Alex ambiguity, but `run_evals.py` only prints a match count. Nothing fails a release.",
+      "evidence": [
+        {
+          "path": "evals/run_evals.py",
+          "line": 1,
+          "note": "manual review, no threshold"
+        },
+        {
+          "path": "evals/refund_cases.jsonl",
+          "line": 3,
+          "note": "ambiguity case already captured"
+        }
+      ],
+      "fix": {
+        "summary": "Grow the dataset with consequential edge cases, add per-metric thresholds, and exit non-zero when they are missed.",
+        "steps": [
+          "Add cases for day-30/31 windows, duplicate refund requests, missing receipts, wrong amounts, and tool timeouts.",
+          "Score tool choice and exact refund amount separately; `sys.exit(1)` if refund accuracy < the agreed threshold (e.g. 100% on amount).",
+          "Run it in CI against every prompt/model change."
+        ],
+        "files": [
+          "evals/run_evals.py",
+          "evals/refund_cases.jsonl"
+        ]
+      }
+    },
+    {
+      "id": "reliability/version-bound-release",
+      "status": "missing",
+      "confidence": "high",
+      "finding": "The model is the floating alias `gpt-4o` and the system prompt has no version, so eval results can't be tied to what is deployed.",
+      "evidence": [
+        {
+          "path": "northstar/config.py",
+          "line": 7,
+          "note": "floating model alias"
+        },
+        {
+          "path": "northstar/prompts.py",
+          "line": 1,
+          "note": "unversioned prompt"
+        }
+      ],
+      "fix": {
+        "summary": "Pin a dated model version and a prompt version, and record both with the eval results in a release manifest.",
+        "steps": [
+          "Pin `openai_model` to a dated snapshot and add `PROMPT_VERSION` next to `SYSTEM_PROMPT`.",
+          "Have `run_evals.py` write `release-manifest.json` with code SHA, model, prompt version, and scores.",
+          "Fail deploy when the manifest's versions don't match the running config."
+        ],
+        "files": [
+          "northstar/config.py",
+          "northstar/prompts.py",
+          "evals/run_evals.py"
+        ]
+      }
+    },
+    {
+      "id": "reliability/integration-gate",
+      "status": "missing",
+      "severity": "high",
+      "confidence": "high",
+      "finding": "There is no CI configuration and no test that runs the compiled graph end to end, so a broken edge (like `confirm → tools`) ships unnoticed.",
+      "evidence": [],
+      "fix": {
+        "summary": "Add a CI workflow that runs unit, contract, and end-to-end graph scenarios as a required check.",
+        "steps": [
+          "Add `.github/workflows/ci.yml` running `pytest` and `python evals/run_evals.py`.",
+          "Add `tests/test_graph_e2e.py` with a fake chat model that drives refund-approved, refund-denied, and ambiguous-customer journeys.",
+          "Mark the workflow as a required status check on the main branch."
+        ],
+        "files": [
+          ".github/workflows/ci.yml",
+          "tests/test_graph_e2e.py"
+        ]
+      }
+    },
+    {
+      "id": "reliability/production-drift-drill",
+      "status": "missing",
+      "confidence": "medium",
+      "finding": "Spans go to a `ConsoleSpanExporter` only; there are no production metrics, sampled evaluations, alert thresholds, or owners.",
+      "evidence": [
+        {
+          "path": "northstar/telemetry.py",
+          "line": 8,
+          "note": "console exporter only"
+        }
+      ],
+      "fix": {
+        "summary": "Export traces to an observability backend, define error and refund-accuracy alerts with an owner, and connect sustained breaches to the stop path.",
+        "steps": [
+          "Swap to an OTLP exporter pointed at your backend (App Insights, Honeycomb, Grafana, etc.).",
+          "Alert on tool error rate and refund-amount mismatches; route to the support-platform on-call.",
+          "Wire a sustained breach to the stop flag once Shutdown exists."
+        ],
+        "files": [
+          "northstar/telemetry.py"
+        ]
+      }
+    },
+    {
+      "id": "permission/capability-policy",
+      "status": "missing",
+      "severity": "high",
+      "confidence": "high",
+      "finding": "All three tools are registered in one flat `TOOLS` list with no risk classification; `send_customer_email` can mail any address with no policy, and a newly added tool would be callable immediately.",
+      "evidence": [
+        {
+          "path": "northstar/tools.py",
+          "line": 55,
+          "note": "flat tool list"
+        }
+      ],
+      "fix": {
+        "summary": "Introduce a tool registry that classifies each tool and blocks unclassified tools or destinations.",
+        "steps": [
+          "Create `northstar/governance/registry.py` mapping each tool to `read | internal_write | consequential`, allowed destinations, and required reviewer role.",
+          "Build `TOOLS` from the registry and raise at startup for any tool without an entry.",
+          "Restrict `send_customer_email` recipients to the customer on the verified order."
+        ],
+        "files": [
+          "northstar/tools.py",
+          "northstar/governance/registry.py"
+        ]
+      }
+    },
+    {
+      "id": "permission/execution-boundary",
+      "status": "missing",
+      "severity": "critical",
+      "confidence": "high",
+      "finding": "Answering \"no\" at the approval prompt still issues the refund: the edge from `confirm` to `tools` is unconditional. `send_customer_email` has no approval step at all.",
+      "evidence": [
+        {
+          "path": "northstar/agent.py",
+          "line": 48,
+          "note": "unconditional confirm → tools edge"
+        },
+        {
+          "path": "northstar/tools.py",
+          "line": 37,
+          "note": "raw Stripe call with no approval check"
+        },
+        {
+          "path": "northstar/prompts.py",
+          "line": 5,
+          "note": "prompt-only 'be careful'"
+        }
+      ],
+      "fix": {
+        "summary": "Enforce approval inside `issue_refund` (and `send_customer_email`) so the side effect cannot run without a verified approval, and route denials away from the tool node.",
+        "steps": [
+          "Add `require_approval(scope=\"refund\")` in `northstar/governance/approval.py` and wrap the private `_issue_refund_raw`; the tool raises without a valid token.",
+          "Replace `graph.add_edge(\"confirm\", \"tools\")` with a conditional edge that returns to `model` with a denial message when not approved.",
+          "Test: with approval denied, the Stripe mock is never called; calling `_issue_refund_raw` outside the wrapper fails a lint/AST check."
+        ],
+        "files": [
+          "northstar/agent.py",
+          "northstar/tools.py",
+          "northstar/governance/approval.py"
+        ]
+      }
+    },
+    {
+      "id": "permission/exact-request-binding",
+      "status": "missing",
+      "severity": "critical",
+      "confidence": "high",
+      "finding": "Approval is a boolean, `refund_approved`, that is never reset. After one \"yes\", every later refund in the conversation goes through without asking, whatever the amount.",
+      "evidence": [
+        {
+          "path": "northstar/agent.py",
+          "line": 18,
+          "note": "boolean approval flag"
+        },
+        {
+          "path": "northstar/agent.py",
+          "line": 31,
+          "note": "skips asking once the flag is true"
+        }
+      ],
+      "fix": {
+        "summary": "Issue a signed approval token bound to a canonical hash of `issue_refund` + `order_id` + `amount_pence` + thread + expiry, and verify it against the actual call.",
+        "steps": [
+          "Compute `request_hash = sha256(canonical_json({tool, args, thread_id}))` when the call is proposed.",
+          "Have the approval service sign `{request_hash, exp, jti}`; verify signature, expiry, and hash inside `require_approval`.",
+          "Delete `refund_approved` from `State`.",
+          "Test: approve £90, then call with £900. The call must be rejected."
+        ],
+        "files": [
+          "northstar/agent.py",
+          "northstar/governance/approval.py"
+        ]
+      }
+    },
+    {
+      "id": "permission/human-review-context",
+      "status": "missing",
+      "severity": "high",
+      "confidence": "high",
+      "finding": "The reviewer only sees \"Agent wants to issue a refund. Allow?\", with no order, amount or customer. Anyone who knows the thread ID can answer it through `/resume`.",
+      "evidence": [
+        {
+          "path": "northstar/agent.py",
+          "line": 32,
+          "note": "context-free approval prompt"
+        },
+        {
+          "path": "northstar/server.py",
+          "line": 25,
+          "note": "unauthenticated approval endpoint"
+        }
+      ],
+      "fix": {
+        "summary": "Show the exact refund (order, customer, amount, reason, agent version, evidence) to an authenticated reviewer role and make deny a real outcome.",
+        "steps": [
+          "Pass the proposed tool call's arguments and the looked-up order into the `interrupt()` payload.",
+          "Require a `refund-reviewer` role on `/resume` and record the reviewer identity.",
+          "Test: an unauthorized user cannot approve; a deny returns to the model without calling Stripe."
+        ],
+        "files": [
+          "northstar/agent.py",
+          "northstar/server.py"
+        ]
+      }
+    },
+    {
+      "id": "permission/atomic-consumption",
+      "status": "missing",
+      "severity": "high",
+      "confidence": "high",
+      "finding": "Approval lives in an in-memory `MemorySaver` checkpointer as a flag that can be reused, never expires, and disappears on restart.",
+      "evidence": [
+        {
+          "path": "northstar/agent.py",
+          "line": 50,
+          "note": "in-memory checkpointer"
+        },
+        {
+          "path": "northstar/agent.py",
+          "line": 33,
+          "note": "flag persists for the thread"
+        }
+      ],
+      "fix": {
+        "summary": "Store approvals in a durable store with short expiry and consume each `jti` atomically before calling Stripe.",
+        "steps": [
+          "Persist approvals in Postgres/Redis with `INSERT … ON CONFLICT DO NOTHING` (or `SETNX`) on `jti` at consumption time.",
+          "Reject expired tokens (minutes, not hours) and pass the action ID as Stripe's idempotency key.",
+          "Test: two concurrent calls with one token produce exactly one refund."
+        ],
+        "files": [
+          "northstar/governance/approval.py",
+          "northstar/agent.py"
+        ]
+      }
+    },
+    {
+      "id": "permission/review-load",
+      "status": "unknown",
+      "confidence": "low",
+      "question": "Who answers the refund approval prompts in production, how many per hour do you expect, and what should happen when nobody responds?",
+      "finding": "The code shows a single approval prompt per thread but nothing about reviewer queues, capacity, or escalation.",
+      "evidence": [
+        {
+          "path": "northstar/agent.py",
+          "line": 32,
+          "note": "approval prompt"
+        }
+      ]
+    },
+    {
+      "id": "permission/authorization-evidence",
+      "status": "missing",
+      "confidence": "high",
+      "finding": "The approval answer is written only to graph state; who approved, what they saw, and whether it was consumed are never recorded.",
+      "evidence": [
+        {
+          "path": "northstar/agent.py",
+          "line": 33,
+          "note": "decision stored only as state"
+        }
+      ],
+      "fix": {
+        "summary": "Record proposal, decision (verified reviewer, time), consumption, and outcome as ledger events under one action ID.",
+        "steps": [
+          "Emit `refund.proposed`, `refund.approved|denied`, `approval.consumed`, and `refund.succeeded|failed|unknown` events from `require_approval` and `issue_refund`.",
+          "Store reviewer identity from the verified `/resume` token, never the bearer token itself."
+        ],
+        "files": [
+          "northstar/governance/approval.py",
+          "northstar/tools.py"
+        ]
+      }
+    },
+    {
+      "id": "permission/bad-approval-drill",
+      "status": "missing",
+      "severity": "low",
+      "confidence": "medium",
+      "finding": "No drill exists, and there is no stop path or ledger to exercise after a mistaken approval.",
+      "evidence": [],
+      "fix": {
+        "summary": "Once the stop path and ledger exist, add a staging drill that approves a bounded bad refund, trips the stop, and checks remediation.",
+        "steps": [
+          "Write `tests/drills/test_bad_approval.py` using Stripe test mode.",
+          "Assert new work stops, credentials are revoked, and the ledger lists the refund for remediation."
+        ],
+        "files": [
+          "tests/drills/test_bad_approval.py"
+        ]
+      }
+    },
+    {
+      "id": "uncertainty/decision-inventory",
+      "status": "missing",
+      "confidence": "high",
+      "finding": "Consequential decisions are identified by free text: `lookup_order` takes a `customer_name`, and `issue_refund` takes any `order_id`/`amount_pence` the model invents. No list of required evidence per decision exists.",
+      "evidence": [
+        {
+          "path": "northstar/tools.py",
+          "line": 24,
+          "note": "lookup by name"
+        },
+        {
+          "path": "northstar/tools.py",
+          "line": 33,
+          "note": "free model-supplied identifiers"
+        }
+      ],
+      "fix": {
+        "summary": "List the refund and email decisions with their required, typed evidence (customer ID, order ID, verified amount) and define the hold path when any is missing.",
+        "steps": [
+          "Add `docs/decisions.md` (or a `DECISIONS` dict in code) for `issue_refund` and `send_customer_email`.",
+          "Change tool signatures to require `customer_id` and `order_id` from a prior lookup, not names."
+        ],
+        "files": [
+          "northstar/tools.py",
+          "docs/decisions.md"
+        ]
+      }
+    },
+    {
+      "id": "uncertainty/uncertainty-gateway",
+      "status": "missing",
+      "severity": "critical",
+      "confidence": "high",
+      "finding": "`lookup_order` silently returns `orders[0]`, so 'Refund Alex's last order' picks whichever Alex Morgan the API lists first. The only guard is the prompt line 'If you are not sure which customer is meant, ask.'",
+      "evidence": [
+        {
+          "path": "northstar/tools.py",
+          "line": 29,
+          "note": "first match wins"
+        },
+        {
+          "path": "northstar/prompts.py",
+          "line": 7,
+          "note": "prompt-only ask-when-unsure"
+        }
+      ],
+      "fix": {
+        "summary": "Add a pre-execution gate that holds any refund or email whose customer/order is not uniquely resolved and consistent across sources.",
+        "steps": [
+          "Make `lookup_order` return all matches; add a `resolve_target` node between `model` and `confirm` that holds when matches ≠ 1.",
+          "Re-check that the refund's `order_id` belongs to the resolved customer before `confirm`.",
+          "Test: two Alex Morgans → the graph interrupts with a clarification, and Stripe is never called."
+        ],
+        "files": [
+          "northstar/tools.py",
+          "northstar/agent.py"
+        ]
+      }
+    },
+    {
+      "id": "uncertainty/validate-signals",
+      "status": "missing",
+      "severity": "high",
+      "confidence": "high",
+      "finding": "Nothing checks uniqueness, that the amount matches the order and policy, or that the conversation and order refer to the same person.",
+      "evidence": [
+        {
+          "path": "northstar/tools.py",
+          "line": 37,
+          "note": "model amount used unchecked"
+        }
+      ],
+      "fix": {
+        "summary": "Hold the action when any deterministic check fails (a unique customer match, the order belongs to that customer, amount ≤ `refundable_amount`), whatever the model's confidence.",
+        "steps": [
+          "Implement these checks in the `resolve_target` gate.",
+          "Return a structured hold reason naming the failed signal."
+        ],
+        "files": [
+          "northstar/agent.py",
+          "northstar/tools.py"
+        ]
+      }
+    },
+    {
+      "id": "uncertainty/missing-signal-policy",
+      "status": "missing",
+      "confidence": "high",
+      "finding": "When no order matches, `lookup_order` returns `{}` and the model carries on; an orders-API timeout raises into the graph with no defined hold or escalation.",
+      "evidence": [
+        {
+          "path": "northstar/tools.py",
+          "line": 29,
+          "note": "empty dict on miss"
+        }
+      ],
+      "fix": {
+        "summary": "Treat missing or failed evidence as a hold with a timeout and an escalation path, never as a pass.",
+        "steps": [
+          "Return an explicit `NotFound`/`Unavailable` result type from `lookup_order`.",
+          "Have the gate hold on either and escalate to a human after the timeout."
+        ],
+        "files": [
+          "northstar/tools.py",
+          "northstar/agent.py"
+        ]
+      }
+    },
+    {
+      "id": "uncertainty/calibration-and-load",
+      "status": "missing",
+      "severity": "low",
+      "confidence": "medium",
+      "finding": "There is no gate to calibrate. The eval set already contains the two-Alex case, but nothing measures unsafe passes or unnecessary questions.",
+      "evidence": [
+        {
+          "path": "evals/refund_cases.jsonl",
+          "line": 3,
+          "note": "single ambiguity case"
+        }
+      ],
+      "fix": {
+        "summary": "Once the gate exists, label clear and ambiguous cases and measure unsafe passes and unnecessary questions.",
+        "steps": [
+          "Add 20+ labelled cases (unique vs duplicate names, mismatched orders) to `evals/refund_cases.jsonl`.",
+          "Report both rates in `run_evals.py` and fail on unsafe passes."
+        ],
+        "files": [
+          "evals/refund_cases.jsonl",
+          "evals/run_evals.py"
+        ]
+      }
+    },
+    {
+      "id": "uncertainty/targeted-clarification",
+      "status": "missing",
+      "confidence": "high",
+      "finding": "There is no clarification mechanism; whether the agent asks depends entirely on the model following the prompt, and no answer is validated.",
+      "evidence": [
+        {
+          "path": "northstar/prompts.py",
+          "line": 7,
+          "note": "prompt-only"
+        }
+      ],
+      "fix": {
+        "summary": "Have the gate interrupt with a question naming the unresolved field and the valid options, and validate the reply against them.",
+        "steps": [
+          "`interrupt({\"question\": \"Do you mean Alex Morgan on order 4817 or on order 6234?\", \"options\": [\"4817\", \"6234\"]})`.",
+          "Reject answers outside the options; escalate after two attempts."
+        ],
+        "files": [
+          "northstar/agent.py"
+        ]
+      }
+    },
+    {
+      "id": "uncertainty/safe-resumption",
+      "status": "partial",
+      "confidence": "high",
+      "finding": "Interrupt/resume exists via the LangGraph checkpointer and `/resume`, but `MemorySaver` loses every held action on restart, holds have no expiry, and nothing re-validates evidence before resuming.",
+      "evidence": [
+        {
+          "path": "northstar/agent.py",
+          "line": 50,
+          "note": "in-memory checkpointer"
+        },
+        {
+          "path": "northstar/server.py",
+          "line": 30,
+          "note": "resume without re-validation"
+        }
+      ],
+      "fix": {
+        "summary": "Use a durable checkpointer, attach version and expiry to holds, and re-run the gate on resume.",
+        "steps": [
+          "Swap `MemorySaver` for `PostgresSaver` (or `SqliteSaver` locally).",
+          "Store `expires_at` in the interrupt payload and reject late answers.",
+          "Re-run `resolve_target` after the answer, and still require Permission for the refund."
+        ],
+        "files": [
+          "northstar/agent.py",
+          "northstar/server.py"
+        ]
+      }
+    },
+    {
+      "id": "uncertainty/clarification-feedback",
+      "status": "missing",
+      "severity": "low",
+      "confidence": "medium",
+      "finding": "Holds and clarifications leave no record, so recurring ambiguity and missed errors can't be reviewed.",
+      "evidence": [],
+      "fix": {
+        "summary": "Record each hold, question, answer, and delay as ledger events and review them on a schedule.",
+        "steps": [
+          "Emit `hold.created` / `hold.answered` events with the action ID.",
+          "Add a weekly review owner in `docs/operations.md`."
+        ],
+        "files": [
+          "northstar/agent.py",
+          "docs/operations.md"
+        ]
+      }
+    },
+    {
+      "id": "ledger/event-contract",
+      "status": "missing",
+      "confidence": "high",
+      "finding": "The only record is a free-form `logger.info` line and a console span; there is no versioned action-event schema.",
+      "evidence": [
+        {
+          "path": "northstar/telemetry.py",
+          "line": 21,
+          "note": "free-form log line"
+        }
+      ],
+      "fix": {
+        "summary": "Define a versioned `ActionEvent` model and emit intent, success, failure, and unknown events that validate against it.",
+        "steps": [
+          "Create `northstar/governance/ledger.py` with a Pydantic `ActionEvent` (action_id, type, identities, timestamps, build/policy versions, redacted args, outcome ref).",
+          "Test that events missing `action_id` or identity are rejected."
+        ],
+        "files": [
+          "northstar/governance/ledger.py"
+        ]
+      }
+    },
+    {
+      "id": "ledger/durable-intent",
+      "status": "missing",
+      "severity": "high",
+      "confidence": "high",
+      "finding": "Nothing is written before the refund. `issue_refund` logs only after Stripe returns, through an asynchronous exporter, so a crash mid-call leaves no record that a refund was attempted.",
+      "evidence": [
+        {
+          "path": "northstar/tools.py",
+          "line": 43,
+          "note": "log after the side effect"
+        },
+        {
+          "path": "northstar/telemetry.py",
+          "line": 8,
+          "note": "async batch export"
+        }
+      ],
+      "fix": {
+        "summary": "Write and await a durable intent record before calling Stripe, and refuse to call if the write fails.",
+        "steps": [
+          "Call `ledger.append(intent)` (synchronous DB insert) at the top of the wrapped refund, before `stripe.Refund.create`.",
+          "Raise and skip the Stripe call if the insert isn't acknowledged.",
+          "Test: with the ledger unavailable, Stripe is never called."
+        ],
+        "files": [
+          "northstar/tools.py",
+          "northstar/governance/ledger.py"
+        ]
+      }
+    },
+    {
+      "id": "ledger/outcome-reconciliation",
+      "status": "missing",
+      "severity": "high",
+      "confidence": "high",
+      "finding": "After three failed attempts the tool raises; there is no `unknown` outcome, no idempotency key to reconcile with, and no job for stale attempts.",
+      "evidence": [
+        {
+          "path": "northstar/tools.py",
+          "line": 40,
+          "note": "raise after retries; outcome lost"
+        }
+      ],
+      "fix": {
+        "summary": "Append success/failure/unknown outcomes under the action ID and reconcile stale intents against Stripe using the idempotency key.",
+        "steps": [
+          "Record `unknown` when the call errors after possibly reaching Stripe.",
+          "Add `scripts/reconcile_refunds.py` that lists intents older than N minutes without an outcome and queries Stripe by idempotency key or metadata."
+        ],
+        "files": [
+          "northstar/tools.py",
+          "scripts/reconcile_refunds.py"
+        ]
+      }
+    },
+    {
+      "id": "ledger/write-access-boundary",
+      "status": "missing",
+      "confidence": "medium",
+      "finding": "Records go to stdout; there is no evidence store, so there is no append-only boundary or separation of read/admin rights.",
+      "evidence": [
+        {
+          "path": "northstar/telemetry.py",
+          "line": 13,
+          "note": "stdout logging"
+        }
+      ],
+      "fix": {
+        "summary": "Store action events in an append-only table or log the agent can insert into but not update or delete.",
+        "steps": [
+          "Create an `action_events` table and grant the agent's DB role `INSERT` only.",
+          "Give investigators a separate read role and keep admin rights with the platform team."
+        ],
+        "files": [
+          "northstar/governance/ledger.py"
+        ]
+      }
+    },
+    {
+      "id": "ledger/independent-integrity",
+      "status": "missing",
+      "severity": "low",
+      "confidence": "high",
+      "finding": "No hash chaining or external anchoring exists.",
+      "evidence": [],
+      "fix": {
+        "summary": "Hash-link each event to the previous one and periodically anchor the chain head in a store the agent cannot write to.",
+        "steps": [
+          "Add `prev_hash` and `hash` columns computed on insert.",
+          "Write the chain head hourly to an independently controlled immutable store and document the interval."
+        ],
+        "files": [
+          "northstar/governance/ledger.py"
+        ]
+      }
+    },
+    {
+      "id": "ledger/data-minimization",
+      "status": "missing",
+      "confidence": "medium",
+      "finding": "`log_tool_result` logs the full payload and result of any tool at INFO with no allowlist or redaction, so customer data from future tools will flow straight into logs.",
+      "evidence": [
+        {
+          "path": "northstar/telemetry.py",
+          "line": 21,
+          "note": "payload and result logged verbatim"
+        }
+      ],
+      "fix": {
+        "summary": "Add a field allowlist and secret/PII scrubbing before anything reaches logs, traces, or the ledger, and set retention.",
+        "steps": [
+          "Define per-tool allowlisted fields (e.g. `order_id`, `amount_pence`) and drop the rest.",
+          "Add a test that a fake card number or email address in a payload never appears in the log output."
+        ],
+        "files": [
+          "northstar/telemetry.py"
+        ]
+      }
+    },
+    {
+      "id": "ledger/investigation-query",
+      "status": "missing",
+      "severity": "medium",
+      "confidence": "high",
+      "finding": "No action ID exists, so there is nothing to join intent, approval, execution, and outcome on.",
+      "evidence": [],
+      "fix": {
+        "summary": "Provide a CLI that takes an action ID and prints its full linked history, flagging missing evidence.",
+        "steps": [
+          "Add `scripts/investigate.py <action_id>` querying `action_events`.",
+          "Separate observed facts (receipts) from model-provided reasons in the output."
+        ],
+        "files": [
+          "scripts/investigate.py"
+        ]
+      }
+    },
+    {
+      "id": "ledger/evidence-failure-drill",
+      "status": "missing",
+      "severity": "low",
+      "confidence": "medium",
+      "finding": "There are no alerts for stale intents or ledger failures, and no ledger yet to monitor.",
+      "evidence": [],
+      "fix": {
+        "summary": "Alert on overdue intents and integrity failures and hold refunds when the ledger is unhealthy; rehearse it in staging.",
+        "steps": [
+          "Emit a metric for intents without outcomes older than N minutes; alert the owner.",
+          "Add `tests/drills/test_ledger_outage.py` asserting refunds are held while the ledger is down."
+        ],
+        "files": [
+          "tests/drills/test_ledger_outage.py"
+        ]
+      }
+    },
+    {
+      "id": "shutdown/independent-control",
+      "status": "missing",
+      "severity": "high",
+      "confidence": "high",
+      "finding": "There is no way to stop the agent except killing the FastAPI process; no stop flag, admin endpoint, or control-plane action exists.",
+      "evidence": [
+        {
+          "path": "northstar/server.py",
+          "line": 7,
+          "note": "only /chat and /resume routes"
+        }
+      ],
+      "fix": {
+        "summary": "Add a durable stop flag with an operator-only endpoint that does not depend on the agent's cooperation.",
+        "steps": [
+          "Store `stopped`, `reason`, `set_by` in Redis/Postgres via `northstar/governance/stop.py`.",
+          "Expose `POST /admin/stop` protected by an operator role (separate from reviewers).",
+          "Document how to set the flag directly if the API is down."
+        ],
+        "files": [
+          "northstar/governance/stop.py",
+          "northstar/server.py"
+        ]
+      }
+    },
+    {
+      "id": "shutdown/stop-before-dispatch",
+      "status": "missing",
+      "severity": "high",
+      "confidence": "high",
+      "finding": "Nothing checks a stop state before model calls, tool execution, or `/resume`.",
+      "evidence": [],
+      "fix": {
+        "summary": "Check the durable stop flag in `run`, `/resume`, and inside every consequential tool wrapper.",
+        "steps": [
+          "Call `stop.raise_if_stopped()` at the top of `run`, `resume`, and the `require_approval` wrapper.",
+          "Test: set the flag mid-conversation; no further tool call executes, even after a process restart."
+        ],
+        "files": [
+          "northstar/agent.py",
+          "northstar/server.py",
+          "northstar/tools.py"
+        ]
+      }
+    },
+    {
+      "id": "shutdown/enforced-limits",
+      "status": "partial",
+      "confidence": "high",
+      "finding": "`recursion_limit: 25` caps graph steps per run, but there are no limits on errors, wall-clock time, tokens/spend, or refunds per hour.",
+      "evidence": [
+        {
+          "path": "northstar/agent.py",
+          "line": 55,
+          "note": "recursion_limit 25"
+        },
+        {
+          "path": "northstar/server.py",
+          "line": 29,
+          "note": "same limit on resume"
+        }
+      ],
+      "fix": {
+        "summary": "Add runner-enforced limits on time, errors, token spend, and refund volume that trip the stop flag with a recorded reason.",
+        "steps": [
+          "Wrap `app.invoke` with a wall-clock deadline and a token budget from the model's usage metadata.",
+          "Add a per-hour refund count/amount ceiling checked in the refund wrapper.",
+          "Trip the stop flag (with reason) when any limit is breached."
+        ],
+        "files": [
+          "northstar/agent.py",
+          "northstar/tools.py"
+        ]
+      }
+    },
+    {
+      "id": "shutdown/cancel-inflight",
+      "status": "partial",
+      "confidence": "medium",
+      "finding": "`lookup_order` sets a 10-second timeout, but the Stripe and SendGrid calls rely on SDK defaults and there is no cancellation propagation or tracking of calls that may still complete.",
+      "evidence": [
+        {
+          "path": "northstar/tools.py",
+          "line": 26,
+          "note": "timeout on one call only"
+        }
+      ],
+      "fix": {
+        "summary": "Set explicit deadlines on every external call and record in-flight consequential calls so they reconcile to a known outcome.",
+        "steps": [
+          "Configure `stripe.max_network_retries = 0` and explicit timeouts; set a timeout on the SendGrid client.",
+          "Record in-flight refunds via the ledger intent so a stop can list them."
+        ],
+        "files": [
+          "northstar/tools.py"
+        ]
+      }
+    },
+    {
+      "id": "shutdown/authority-revocation",
+      "status": "missing",
+      "confidence": "high",
+      "finding": "Stopping the process leaves the Stripe, SendGrid and shared automation keys valid. Revoking the shared key would also stop the returns bot and the reconciler.",
+      "evidence": [
+        {
+          "path": "northstar/config.py",
+          "line": 10,
+          "note": "shared credential"
+        }
+      ],
+      "fix": {
+        "summary": "Make the stop path disable this agent's own credentials and invalidate pending approvals before any cleanup.",
+        "steps": [
+          "After per-agent identities exist, have `/admin/stop` disable the agent's principal/role assignment and roll its Stripe restricted key.",
+          "Mark all unconsumed approvals as revoked in the approval store."
+        ],
+        "files": [
+          "northstar/governance/stop.py"
+        ]
+      }
+    },
+    {
+      "id": "shutdown/bounded-cleanup",
+      "status": "missing",
+      "confidence": "high",
+      "finding": "No shutdown or cleanup procedure exists.",
+      "evidence": [],
+      "fix": {
+        "summary": "Implement the stop sequence as idempotent steps with per-step deadlines: revoke, notify, then best-effort cleanup.",
+        "steps": [
+          "Write `stop.execute()` running revoke → notify → flush spans → close clients, each with its own timeout.",
+          "Report unfinished steps in the stop record."
+        ],
+        "files": [
+          "northstar/governance/stop.py"
+        ]
+      }
+    },
+    {
+      "id": "shutdown/reconcile-incident",
+      "status": "missing",
+      "confidence": "high",
+      "finding": "There is no post-stop reconciliation or owner notification, and no ledger to reconcile against.",
+      "evidence": [],
+      "fix": {
+        "summary": "On stop, list completed/failed/unknown refunds from ledger intents vs Stripe receipts and notify the agent's owner.",
+        "steps": [
+          "Reuse `scripts/reconcile_refunds.py` from the stop sequence.",
+          "Send the summary to the owner configured in `Settings.owner`."
+        ],
+        "files": [
+          "northstar/governance/stop.py",
+          "scripts/reconcile_refunds.py"
+        ]
+      }
+    },
+    {
+      "id": "shutdown/controlled-restart",
+      "status": "missing",
+      "confidence": "medium",
+      "finding": "Nothing persists a stopped state, so a restart comes straight back up with the same keys; there is no recovery procedure or drill.",
+      "evidence": [],
+      "fix": {
+        "summary": "Keep the stop flag across restarts, require an authorized recovery with fresh credentials, and drill hard-kill and restart in staging.",
+        "steps": [
+          "Check the durable stop flag at startup and refuse to serve while it is set.",
+          "Add `POST /admin/recover` requiring a separate approver.",
+          "Add `tests/drills/test_restart_stays_stopped.py`."
+        ],
+        "files": [
+          "northstar/server.py",
+          "tests/drills/test_restart_stays_stopped.py"
+        ]
+      }
+    }
+  ],
+  "notes": [
+    "Assessed the single agent in `northstar/`. The orders API and the approval UI are not in this repo, so their checks were judged from the agent side only."
+  ],
+  "scores": {
+    "catalogVersion": "de86dddfc6a8",
+    "overall": {
+      "score": 8,
+      "band": {
+        "label": "Largely ungoverned",
+        "tone": "poor"
+      },
+      "counts": {
+        "present": 0,
+        "partial": 9,
+        "missing": 38,
+        "not_applicable": 0,
+        "unknown": 1
+      }
+    },
+    "rooms": [
+      {
+        "id": "identity",
+        "score": 9,
+        "band": {
+          "label": "Largely ungoverned",
+          "tone": "poor"
+        },
+        "counts": {
+          "present": 0,
+          "partial": 2,
+          "missing": 6,
+          "not_applicable": 0,
+          "unknown": 0
+        }
+      },
+      {
+        "id": "reliability",
+        "score": 23,
+        "band": {
+          "label": "Largely ungoverned",
+          "tone": "poor"
+        },
+        "counts": {
+          "present": 0,
+          "partial": 4,
+          "missing": 4,
+          "not_applicable": 0,
+          "unknown": 0
+        }
+      },
+      {
+        "id": "permission",
+        "score": 0,
+        "band": {
+          "label": "Largely ungoverned",
+          "tone": "poor"
+        },
+        "counts": {
+          "present": 0,
+          "partial": 0,
+          "missing": 7,
+          "not_applicable": 0,
+          "unknown": 1
+        }
+      },
+      {
+        "id": "uncertainty",
+        "score": 9,
+        "band": {
+          "label": "Largely ungoverned",
+          "tone": "poor"
+        },
+        "counts": {
+          "present": 0,
+          "partial": 1,
+          "missing": 7,
+          "not_applicable": 0,
+          "unknown": 0
+        }
+      },
+      {
+        "id": "ledger",
+        "score": 0,
+        "band": {
+          "label": "Largely ungoverned",
+          "tone": "poor"
+        },
+        "counts": {
+          "present": 0,
+          "partial": 0,
+          "missing": 8,
+          "not_applicable": 0,
+          "unknown": 0
+        }
+      },
+      {
+        "id": "shutdown",
+        "score": 9,
+        "band": {
+          "label": "Largely ungoverned",
+          "tone": "poor"
+        },
+        "counts": {
+          "present": 0,
+          "partial": 2,
+          "missing": 6,
+          "not_applicable": 0,
+          "unknown": 0
+        }
+      }
+    ],
+    "fixOrder": [
+      "identity/verify-claims",
+      "permission/execution-boundary",
+      "permission/exact-request-binding",
+      "uncertainty/uncertainty-gateway",
+      "reliability/io-failure-tests",
+      "reliability/deterministic-invariants",
+      "identity/trusted-issuer",
+      "identity/close-bypasses",
+      "ledger/durable-intent",
+      "ledger/outcome-reconciliation",
+      "shutdown/independent-control",
+      "shutdown/stop-before-dispatch",
+      "shutdown/authority-revocation",
+      "permission/atomic-consumption",
+      "reliability/version-bound-release",
+      "reliability/integration-gate",
+      "uncertainty/safe-resumption",
+      "reliability/stage-test-suites",
+      "permission/capability-policy",
+      "permission/human-review-context",
+      "uncertainty/validate-signals",
+      "identity/owner-contract",
+      "identity/short-lived-revocable",
+      "ledger/event-contract",
+      "ledger/write-access-boundary",
+      "ledger/data-minimization",
+      "ledger/investigation-query",
+      "shutdown/bounded-cleanup",
+      "shutdown/reconcile-incident",
+      "shutdown/controlled-restart",
+      "permission/authorization-evidence",
+      "uncertainty/decision-inventory",
+      "uncertainty/missing-signal-policy",
+      "uncertainty/targeted-clarification",
+      "reliability/production-drift-drill",
+      "identity/instance-lifecycle",
+      "identity/record-verified-identity",
+      "shutdown/enforced-limits",
+      "shutdown/cancel-inflight",
+      "reliability/workflow-contracts",
+      "reliability/model-eval-thresholds",
+      "ledger/independent-integrity",
+      "uncertainty/calibration-and-load",
+      "identity/compromised-identity-drill",
+      "ledger/evidence-failure-drill",
+      "permission/bad-approval-drill",
+      "uncertainty/clarification-feedback"
+    ],
+    "questions": [
+      "permission/review-load"
+    ]
+  },
+  "fixFirst": [
+    {
+      "id": "identity/verify-claims",
+      "title": "Verify claims at every receiving boundary",
+      "status": "missing"
+    },
+    {
+      "id": "permission/execution-boundary",
+      "title": "Enforce policy where the side effect occurs",
+      "status": "missing"
+    },
+    {
+      "id": "permission/exact-request-binding",
+      "title": "Bind approval to the complete action",
+      "status": "missing"
+    },
+    {
+      "id": "uncertainty/uncertainty-gateway",
+      "title": "Put the uncertainty gate before execution",
+      "status": "missing"
+    },
+    {
+      "id": "reliability/io-failure-tests",
+      "title": "Inject dependency failures",
+      "status": "missing"
+    },
+    {
+      "id": "reliability/deterministic-invariants",
+      "title": "Gate deterministic code on required invariants",
+      "status": "partial"
+    },
+    {
+      "id": "identity/trusted-issuer",
+      "title": "Issue claims outside the agent’s trust boundary",
+      "status": "missing"
+    },
+    {
+      "id": "identity/close-bypasses",
+      "title": "Route all external calls through enforcement",
+      "status": "missing"
+    },
+    {
+      "id": "ledger/durable-intent",
+      "title": "Acknowledge durable intent before execution",
+      "status": "missing"
+    },
+    {
+      "id": "ledger/outcome-reconciliation",
+      "title": "Reconcile incomplete and ambiguous outcomes",
+      "status": "missing"
+    },
+    {
+      "id": "shutdown/independent-control",
+      "title": "Provision an independent stop path",
+      "status": "missing"
+    },
+    {
+      "id": "shutdown/stop-before-dispatch",
+      "title": "Check stop state before dispatch",
+      "status": "missing"
+    },
+    {
+      "id": "shutdown/authority-revocation",
+      "title": "Revoke authority through the supervisor",
+      "status": "missing"
+    },
+    {
+      "id": "permission/atomic-consumption",
+      "title": "Consume approvals atomically",
+      "status": "missing"
+    },
+    {
+      "id": "reliability/version-bound-release",
+      "title": "Bind release evidence to the deployed version",
+      "status": "missing"
+    },
+    {
+      "id": "reliability/integration-gate",
+      "title": "Test joins and complete journeys",
+      "status": "missing"
+    },
+    {
+      "id": "uncertainty/safe-resumption",
+      "title": "Persist holds and revalidate before resuming",
+      "status": "partial"
+    },
+    {
+      "id": "reliability/stage-test-suites",
+      "title": "Create isolated tests for each stage",
+      "status": "partial"
+    },
+    {
+      "id": "permission/capability-policy",
+      "title": "Inventory and classify executable capabilities",
+      "status": "missing"
+    },
+    {
+      "id": "permission/human-review-context",
+      "title": "Build a review screen that supports refusal",
+      "status": "missing"
+    },
+    {
+      "id": "uncertainty/validate-signals",
+      "title": "Measure evidence quality beyond model confidence",
+      "status": "missing"
+    },
+    {
+      "id": "identity/owner-contract",
+      "title": "Define the identity contract",
+      "status": "missing"
+    },
+    {
+      "id": "identity/short-lived-revocable",
+      "title": "Bound token lifetime and revocation delay",
+      "status": "missing"
+    },
+    {
+      "id": "ledger/event-contract",
+      "title": "Define a versioned action-event schema",
+      "status": "missing"
+    },
+    {
+      "id": "ledger/write-access-boundary",
+      "title": "Separate append, read, and administration rights",
+      "status": "missing"
+    },
+    {
+      "id": "ledger/data-minimization",
+      "title": "Set redaction, access, and retention rules",
+      "status": "missing"
+    },
+    {
+      "id": "ledger/investigation-query",
+      "title": "Make one action reconstructable",
+      "status": "missing"
+    },
+    {
+      "id": "shutdown/bounded-cleanup",
+      "title": "Make cleanup repeatable and time-bounded",
+      "status": "missing"
+    },
+    {
+      "id": "shutdown/reconcile-incident",
+      "title": "Reconcile effects and notify an owner",
+      "status": "missing"
+    },
+    {
+      "id": "shutdown/controlled-restart",
+      "title": "Drill termination and deliberate recovery",
+      "status": "missing"
+    },
+    {
+      "id": "permission/authorization-evidence",
+      "title": "Record the authorization lifecycle",
+      "status": "missing"
+    },
+    {
+      "id": "uncertainty/decision-inventory",
+      "title": "Identify decisions that must not guess",
+      "status": "missing"
+    },
+    {
+      "id": "uncertainty/missing-signal-policy",
+      "title": "Define behavior when a signal is unavailable",
+      "status": "missing"
+    },
+    {
+      "id": "uncertainty/targeted-clarification",
+      "title": "Ask for the specific missing fact",
+      "status": "missing"
+    },
+    {
+      "id": "reliability/production-drift-drill",
+      "title": "Rehearse failure after a passing release",
+      "status": "missing"
+    },
+    {
+      "id": "identity/instance-lifecycle",
+      "title": "Separate process and session lifetimes",
+      "status": "partial"
+    },
+    {
+      "id": "identity/record-verified-identity",
+      "title": "Carry verified identity into the ledger",
+      "status": "partial"
+    },
+    {
+      "id": "shutdown/enforced-limits",
+      "title": "Set enforceable runtime limits",
+      "status": "partial"
+    },
+    {
+      "id": "shutdown/cancel-inflight",
+      "title": "Propagate cancellation and track in-flight work",
+      "status": "partial"
+    },
+    {
+      "id": "reliability/workflow-contracts",
+      "title": "Map the workflow and its contracts",
+      "status": "partial"
+    },
+    {
+      "id": "reliability/model-eval-thresholds",
+      "title": "Set measurable model acceptance criteria",
+      "status": "partial"
+    },
+    {
+      "id": "ledger/independent-integrity",
+      "title": "Anchor integrity outside the writer’s control",
+      "status": "missing"
+    },
+    {
+      "id": "uncertainty/calibration-and-load",
+      "title": "Calibrate for errors and reviewer workload",
+      "status": "missing"
+    },
+    {
+      "id": "identity/compromised-identity-drill",
+      "title": "Exercise a compromised-credential scenario",
+      "status": "missing"
+    },
+    {
+      "id": "ledger/evidence-failure-drill",
+      "title": "Exercise evidence failure across the controls",
+      "status": "missing"
+    },
+    {
+      "id": "permission/bad-approval-drill",
+      "title": "Test containment after a mistaken approval",
+      "status": "missing"
+    },
+    {
+      "id": "uncertainty/clarification-feedback",
+      "title": "Close the loop with outcome evidence",
+      "status": "missing"
+    }
+  ]
+}

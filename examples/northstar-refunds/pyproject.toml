@@ -1,0 +1,16 @@
+[project]
+name = "northstar-refunds"
+version = "0.3.0"
+description = "Northstar customer-support agent (fixture for agent-governance-scorecard; intentionally half-governed)."
+requires-python = ">=3.11"
+dependencies = [
+  "langgraph>=0.4",
+  "langchain-openai>=0.3",
+  "stripe>=11",
+  "sendgrid>=6",
+  "fastapi>=0.115",
+  "opentelemetry-sdk>=1.27",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8"]

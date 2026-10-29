@@ -1,0 +1,4 @@
+node_modules/
+.DS_Store
+# Scorecard working files (keep report.json / scorecard.* only for the example fixture)
+**/.governance-scorecard/discovery.json
