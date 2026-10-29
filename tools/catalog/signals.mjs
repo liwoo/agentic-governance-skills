@@ -433,3 +433,79 @@ export const frameworkPatterns = {
   "Azure AI Foundry": ["azure-ai-projects", "azure\\.ai\\.projects", "azure-ai-agents", "azure\\.ai\\.agents"],
   "Temporal / Durable workflows": ["temporalio", "azure-functions-durable", "durabletask"],
 };
+
+// ── Relevance ───────────────────────────────────────────────────────────────
+// Before assessing, the assessor answers each trait about the agent, with evidence.
+// Rooms and checks declare which traits make them apply, so an agent is never marked
+// down for lacking a control it has no use for (e.g. approvals on a read-only agent).
+// Traits are ordered from broad to narrow; `implies` lists traits that must also be true.
+
+export const traits = [
+  {
+    id: "acts",
+    label: "Takes actions",
+    question: "Does the agent write, send or change anything outside its own run?",
+    trueWhen: "It writes to a database, file or queue, calls an API that changes something, or sends a message. Calling a model API on its own doesn't count.",
+    whenFalse: "it only returns text and changes nothing outside its own run",
+    implies: [],
+  },
+  {
+    id: "consequential",
+    label: "Consequential actions",
+    question: "Can any action be hard to undo, or affect people outside the team?",
+    trueWhen: "It moves money, deletes or overwrites records other people rely on, contacts people outside the system, changes access or permissions, runs generated code, or publishes something.",
+    whenFalse: "none of its actions is hard to undo or affects people outside the team",
+    implies: ["acts"],
+  },
+  {
+    id: "unreviewed_consequential",
+    label: "Consequential actions without review",
+    question: "Does any consequential action take effect before a person approves that specific action?",
+    trueWhen: "The agent executes the action itself. False only when every consequential output lands as a draft or proposal that a person approves before it takes effect.",
+    whenFalse: "every consequential output is a draft that a person approves before it takes effect",
+    implies: ["consequential"],
+  },
+  {
+    id: "model_decides",
+    label: "Model makes decisions",
+    question: "Does model output choose a target, amount, category, priority or route that is acted on or recorded?",
+    trueWhen: "A model's answer decides what happens next or what gets stored, beyond being shown to a person as free text.",
+    whenFalse: "model output is only shown to a person and never decides an action or a stored value",
+    implies: [],
+  },
+  {
+    id: "ambiguous_targets",
+    label: "Resolves ambiguous targets",
+    question: "Does the agent work out who or what to act on from free text or fuzzy matching?",
+    trueWhen: "It turns names, descriptions or phrases like \"my last order\" into a specific customer, record, recipient or file.",
+    whenFalse: "every target it acts on arrives as an explicit identifier",
+    implies: [],
+  },
+];
+
+// Which traits make each room apply. `null` means the room always applies.
+export const roomRelevance = {
+  identity: ["acts"],
+  reliability: null,
+  permission: ["consequential"],
+  uncertainty: ["model_decides"],
+  ledger: ["acts"],
+  shutdown: ["acts"],
+};
+
+// Checks that need a narrower trait than their room. A check applies when ANY listed trait is true.
+export const checkRelevance = {
+  "identity/compromised-identity-drill": ["consequential"],
+  // Approval mechanics only matter when the agent executes consequential actions itself.
+  "permission/exact-request-binding": ["unreviewed_consequential"],
+  "permission/atomic-consumption": ["unreviewed_consequential"],
+  "permission/authorization-evidence": ["unreviewed_consequential"],
+  "permission/bad-approval-drill": ["unreviewed_consequential"],
+  "uncertainty/targeted-clarification": ["ambiguous_targets"],
+  // Holds exist when the agent waits for a clarification or an approval.
+  "uncertainty/safe-resumption": ["ambiguous_targets", "unreviewed_consequential"],
+  "ledger/durable-intent": ["consequential"],
+  "ledger/outcome-reconciliation": ["consequential"],
+  "ledger/independent-integrity": ["consequential"],
+  "shutdown/reconcile-incident": ["consequential"],
+};

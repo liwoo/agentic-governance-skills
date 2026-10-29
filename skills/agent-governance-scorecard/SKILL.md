@@ -60,8 +60,8 @@ which contains:
 These are **leads to read, not verdicts**. Keyword matches miss renamed concepts
 and find false positives. Use your own search tools as well.
 
-`template` writes `.governance-scorecard/report.json`, with all 48 checks waiting
-to be filled in.
+`template` writes `.governance-scorecard/report.json`, with the profile questions
+and all 48 checks waiting to be filled in.
 
 If the project root holds several agents or services, ask which one to assess, or
 assess the most consequential one and say so in `notes`.
@@ -78,11 +78,36 @@ Read enough code to write down:
   the consequential action, and whether anything sits between the model's tool
   call and that function.
 
-Record each consequential action in `consequentialActions`. Most checks depend on
-this map. A check about approvals means something different for a read-only FAQ
-bot than for a refund agent.
+Record each consequential action in `consequentialActions`.
 
-### 3. Assess each room
+### 3. Decide what applies
+
+Not every room applies to every agent. A bot that only answers questions has no
+use for approval tokens or a kill switch, and it shouldn't lose points for lacking
+them. Answer the 5 traits in `profile.traits` from the map:
+
+| Trait | True when |
+|---|---|
+| `acts` | It writes, sends or changes anything outside its own run |
+| `consequential` | An action is hard to undo or affects people outside the team |
+| `unreviewed_consequential` | A consequential action takes effect before a person approves it |
+| `model_decides` | Model output picks a target, amount, category, priority or route that is acted on or stored |
+| `ambiguous_targets` | It works out who or what to act on from free text or fuzzy matching |
+
+Each answer needs a `reason`. A `true` answer also needs evidence; a `false`
+answer says what you searched for and didn't find. When unsure, answer `true`:
+a wrong `false` hides real gaps. The full definitions are in
+`references/assessment-method.md`. Then run:
+
+```bash
+node <skill>/scripts/scorecard.mjs scope .governance-scorecard/report.json
+```
+
+`scope` checks the answers are consistent, then trims `checks` to the ones that
+apply and prints what it skipped and why. Assess only what's left. The report shows
+the profile, so anyone can challenge an answer.
+
+### 4. Assess each room
 
 Go through the rooms in order: Identity, Reliability, Permission, Uncertainty,
 Ledger, Shutdown. For each one:
@@ -91,8 +116,9 @@ Ledger, Shutdown. For each one:
 2. For every check, look for the concept, not a particular library. The same
    control can be a LangGraph `interrupt()`, a decorator, a middleware, a DB
    constraint, or a check in the receiving API.
-3. Set a status (`present`, `partial`, `missing`, `not_applicable`, `unknown`)
-   following `references/assessment-method.md`.
+3. Set a status (`present`, `partial`, `missing`, `unknown`) following
+   `references/assessment-method.md`. Use `not_applicable` only for a rare case the
+   profile can't express, with a reason.
 4. Fill in the remaining fields:
    - **evidence:** `path` + `line` + a short note for each piece;
    - **finding:** one or two sentences in this codebase's terms;
@@ -105,14 +131,15 @@ Ledger, Shutdown. For each one:
 
 Fill in `report.json` room by room so progress survives an interruption.
 
-### 4. Validate and render
+### 5. Validate and render
 
 ```bash
 node <skill>/scripts/scorecard.mjs validate .governance-scorecard/report.json
 node <skill>/scripts/scorecard.mjs render   .governance-scorecard/report.json
 ```
 
-`validate` names every missing field and every unassessed check. Fix them and run
+`validate` names every missing field and every check that applies but hasn't been
+assessed. Fix them and run
 it again. `render` writes the following to `.governance-scorecard/`:
 - `scorecard.html`: a self-contained report with a score per room, a "fix these
   first" list, questions for the team, evidence, and fixes;
@@ -122,7 +149,7 @@ Useful options:
 - `--link-base https://github.com/org/repo/blob/<sha>` turns evidence into links.
 - `--fail-under 60` exits non-zero when the overall score is below 60, for CI.
 
-### 5. Report back in chat
+### 6. Report back in chat
 
 Keep the chat summary short and plain (the writing rules in
 `references/assessment-method.md` apply here too), and send people to the HTML
@@ -138,8 +165,8 @@ Suggest adding `.governance-scorecard/discovery.json` and `report.json` to
 
 ## Scoring (computed by `render`)
 
-- `present` = 1 point, `partial` = ½, `missing` and `unknown` = 0, and
-  `not_applicable` is excluded.
+- Only checks that apply to this agent are scored. `present` = 1 point,
+  `partial` = ½, `missing` and `unknown` = 0.
 - Each room's three **priority checks** (★) count double.
 - Bands: ≥ 85 well governed · ≥ 60 partly governed · ≥ 30 thinly governed ·
   below 30 largely ungoverned.

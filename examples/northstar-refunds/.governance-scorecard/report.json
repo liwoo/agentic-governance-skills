@@ -1,6 +1,6 @@
 {
-  "schemaVersion": 1,
-  "catalogVersion": "de86dddfc6a8",
+  "schemaVersion": 2,
+  "catalogVersion": "eff222daad15",
   "assessedAt": "2026-10-29T12:00:00.000Z",
   "assessor": "Claude Code (claude-opus-5-5)",
   "project": {
@@ -15,6 +15,70 @@
       "FastAPI",
       "OpenTelemetry"
     ]
+  },
+  "profile": {
+    "traits": {
+      "acts": {
+        "value": true,
+        "reason": "Issues Stripe refunds and sends SendGrid emails.",
+        "evidence": [
+          {
+            "path": "northstar/tools.py",
+            "line": 37,
+            "note": "stripe.Refund.create"
+          },
+          {
+            "path": "northstar/tools.py",
+            "line": 51,
+            "note": "SendGrid send"
+          }
+        ]
+      },
+      "consequential": {
+        "value": true,
+        "reason": "Refunds move money and emails reach customers.",
+        "evidence": [
+          {
+            "path": "northstar/tools.py",
+            "line": 33,
+            "note": "issue_refund"
+          }
+        ]
+      },
+      "unreviewed_consequential": {
+        "value": true,
+        "reason": "`issue_refund` and `send_customer_email` execute inside the agent; the approval prompt doesn't stop them.",
+        "evidence": [
+          {
+            "path": "northstar/agent.py",
+            "line": 48,
+            "note": "confirm → tools edge is unconditional"
+          }
+        ]
+      },
+      "model_decides": {
+        "value": true,
+        "reason": "The model chooses the order and the refund amount.",
+        "evidence": [
+          {
+            "path": "northstar/tools.py",
+            "line": 33,
+            "note": "model-supplied order_id and amount_pence"
+          }
+        ]
+      },
+      "ambiguous_targets": {
+        "value": true,
+        "reason": "`lookup_order` finds the customer by name and takes the first match.",
+        "evidence": [
+          {
+            "path": "northstar/tools.py",
+            "line": 24,
+            "note": "lookup by customer_name"
+          }
+        ]
+      }
+    }
   },
   "agents": [
     {
@@ -66,7 +130,8 @@
         "files": [
           "northstar/config.py"
         ]
-      }
+      },
+      "severity": "medium"
     },
     {
       "id": "identity/instance-lifecycle",
@@ -97,7 +162,8 @@
           "northstar/telemetry.py",
           "northstar/agent.py"
         ]
-      }
+      },
+      "severity": "medium"
     },
     {
       "id": "identity/trusted-issuer",
@@ -186,7 +252,8 @@
         "files": [
           "northstar/config.py"
         ]
-      }
+      },
+      "severity": "medium"
     },
     {
       "id": "identity/close-bypasses",
@@ -221,7 +288,8 @@
           "northstar/tools.py",
           "pyproject.toml"
         ]
-      }
+      },
+      "severity": "high"
     },
     {
       "id": "identity/record-verified-identity",
@@ -246,7 +314,8 @@
           "northstar/telemetry.py",
           "northstar/tools.py"
         ]
-      }
+      },
+      "severity": "medium"
     },
     {
       "id": "identity/compromised-identity-drill",
@@ -293,7 +362,8 @@
           "northstar/tools.py",
           "docs/workflow.md"
         ]
-      }
+      },
+      "severity": "medium"
     },
     {
       "id": "reliability/stage-test-suites",
@@ -316,7 +386,8 @@
         "files": [
           "tests/"
         ]
-      }
+      },
+      "severity": "high"
     },
     {
       "id": "reliability/deterministic-invariants",
@@ -408,7 +479,8 @@
           "evals/run_evals.py",
           "evals/refund_cases.jsonl"
         ]
-      }
+      },
+      "severity": "medium"
     },
     {
       "id": "reliability/version-bound-release",
@@ -439,7 +511,8 @@
           "northstar/prompts.py",
           "evals/run_evals.py"
         ]
-      }
+      },
+      "severity": "high"
     },
     {
       "id": "reliability/integration-gate",
@@ -483,7 +556,8 @@
         "files": [
           "northstar/telemetry.py"
         ]
-      }
+      },
+      "severity": "medium"
     },
     {
       "id": "permission/capability-policy",
@@ -678,7 +752,8 @@
           "northstar/governance/approval.py",
           "northstar/tools.py"
         ]
-      }
+      },
+      "severity": "medium"
     },
     {
       "id": "permission/bad-approval-drill",
@@ -725,7 +800,8 @@
           "northstar/tools.py",
           "docs/decisions.md"
         ]
-      }
+      },
+      "severity": "medium"
     },
     {
       "id": "uncertainty/uncertainty-gateway",
@@ -805,7 +881,8 @@
           "northstar/tools.py",
           "northstar/agent.py"
         ]
-      }
+      },
+      "severity": "medium"
     },
     {
       "id": "uncertainty/calibration-and-load",
@@ -853,7 +930,8 @@
         "files": [
           "northstar/agent.py"
         ]
-      }
+      },
+      "severity": "medium"
     },
     {
       "id": "uncertainty/safe-resumption",
@@ -883,7 +961,8 @@
           "northstar/agent.py",
           "northstar/server.py"
         ]
-      }
+      },
+      "severity": "high"
     },
     {
       "id": "uncertainty/clarification-feedback",
@@ -925,7 +1004,8 @@
         "files": [
           "northstar/governance/ledger.py"
         ]
-      }
+      },
+      "severity": "medium"
     },
     {
       "id": "ledger/durable-intent",
@@ -1004,7 +1084,8 @@
         "files": [
           "northstar/governance/ledger.py"
         ]
-      }
+      },
+      "severity": "medium"
     },
     {
       "id": "ledger/independent-integrity",
@@ -1045,7 +1126,8 @@
         "files": [
           "northstar/telemetry.py"
         ]
-      }
+      },
+      "severity": "medium"
     },
     {
       "id": "ledger/investigation-query",
@@ -1157,7 +1239,8 @@
           "northstar/agent.py",
           "northstar/tools.py"
         ]
-      }
+      },
+      "severity": "medium"
     },
     {
       "id": "shutdown/cancel-inflight",
@@ -1180,7 +1263,8 @@
         "files": [
           "northstar/tools.py"
         ]
-      }
+      },
+      "severity": "medium"
     },
     {
       "id": "shutdown/authority-revocation",
@@ -1203,7 +1287,8 @@
         "files": [
           "northstar/governance/stop.py"
         ]
-      }
+      },
+      "severity": "high"
     },
     {
       "id": "shutdown/bounded-cleanup",
@@ -1220,7 +1305,8 @@
         "files": [
           "northstar/governance/stop.py"
         ]
-      }
+      },
+      "severity": "medium"
     },
     {
       "id": "shutdown/reconcile-incident",
@@ -1238,7 +1324,8 @@
           "northstar/governance/stop.py",
           "scripts/reconcile_refunds.py"
         ]
-      }
+      },
+      "severity": "medium"
     },
     {
       "id": "shutdown/controlled-restart",
@@ -1257,7 +1344,8 @@
           "northstar/server.py",
           "tests/drills/test_restart_stays_stopped.py"
         ]
-      }
+      },
+      "severity": "medium"
     }
   ],
   "notes": [

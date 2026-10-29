@@ -40,6 +40,8 @@ The way you catch that is by reading the code path between "the model suggested 
 
 **It works with whatever you built.** The skill looks for the concept, whichever library implements it. An approval gate can be a LangGraph `interrupt`, a decorator, a middleware, a database constraint or a check in the receiving API, and it'll recognise all of them. It's been written with LangGraph, LlamaIndex, CrewAI, the OpenAI Agents SDK, Pydantic AI, Microsoft Agent Framework, Semantic Kernel and hand-rolled loops in mind. Python first, any language really.
 
+**It only judges what your agent actually needs.** Before it scores anything, it profiles the agent with 5 yes/no questions: does it take actions, can they hurt anyone, do they run before a person approves them, does the model make the call, does it guess who you meant. A Q&A bot gets checked on Reliability and nothing else. An agent that writes drafts for a human to approve skips the approval-token checks, because the human already is the approval. The answers are printed in the report with their evidence, so anyone can argue with them.
+
 **Honest about what code can't tell it.** Some things only your team knows, like who answers the approval queue at 2am. Those come back as specific questions for the team. The skill doesn't guess, and it doesn't hand out credit for them.
 
 **Something to track over time.** Next to the HTML there's a `scorecard.json`. Commit it, diff it between releases, or fail CI with `--fail-under 60` when the score drops.
@@ -67,8 +69,9 @@ The checks come straight from the talk's interactive site (`sites/governance-hou
 
 1. **Index.** A tiny zero-dependency script maps your repo: frameworks, tools, actions that move money or data, tests, CI. Anything that looks like a secret gets masked.
 2. **Map.** Your coding agent reads the code and writes down what the agent can actually do, especially the path from model output to side effect.
-3. **Assess.** It goes room by room. Each check gets `present`, `partial`, `missing`, `unknown` or `not applicable`, with evidence. There are rules about what counts. A system prompt saying "be careful with refunds" is a request to the model, so it earns nothing. A confirm dialog the tool doesn't depend on only gets partial credit.
-4. **Render.** The script validates that all 48 checks are covered and builds the report.
+3. **Scope.** It answers the 5 profile questions with evidence, and the script drops every check those answers rule out.
+4. **Assess.** It goes room by room through what's left. Each check gets `present`, `partial`, `missing`, `unknown` or `not applicable`, with evidence. There are rules about what counts. A system prompt saying "be careful with refunds" is a request to the model, so it earns nothing. A confirm dialog the tool doesn't depend on only gets partial credit.
+5. **Render.** The script checks that every relevant check is covered and builds the report.
 
 It's read-only: it never runs your agent, edits your code or calls your services. The reading is done by the coding agent you already use, and the scripts run locally.
 

@@ -7,14 +7,16 @@ Independent controls halt the agent, cancel work, revoke authority, settle recor
 
 **Risks it addresses:** A runaway loop keeps acting or spending; A stopped process leaves credentials alive; Hard kills cannot run application cleanup.
 
+**Applies when:** `acts` (takes actions) is true.
+
 ## Checks
 
 Priority checks (★) carry double weight in the score.
 
 ### ★ `shutdown/independent-control` — Provision an independent stop path
 
-- **Action (what good looks like):** Expose an authenticated stop through a supervisor or control plane outside the agent process; define who can invoke it and how to reach it during an outage.
-- **Verify (the behavioural test):** Deadlock or disconnect the agent in staging. An authorized operator must still be able to activate the external stop; unauthorized callers must fail.
+- **Action (what good looks like):** Provide a stop that works through a separate supervising system, not through the agent itself. Say who is allowed to use it and how they reach it even when things are failing.
+- **Verify (the behavioural test):** In a test environment, make the agent freeze or lose its connection. An authorised operator should still be able to trigger the outside stop, and anyone without permission should be refused.
 - **Provable from:** `code`
 - **Evidence to look for:**
   - An authenticated stop endpoint, flag, or control-plane action outside the agent's reasoning loop (feature flag, DB flag, admin API, orchestration terminate).
@@ -24,8 +26,8 @@ Priority checks (★) carry double weight in the score.
 
 ### ★ `shutdown/stop-before-dispatch` — Check stop state before dispatch
 
-- **Action (what good looks like):** Gate scheduling, retries, queue consumers, and tool calls on a durable stopped state; register shutdown handlers before agent work begins.
-- **Verify (the behavioural test):** Stop during a queued workflow. No new step may dispatch after the enforced stop boundary, including after process restart.
+- **Action (what good looks like):** Before the agent starts any new piece of work — scheduling, retries, picking up queued jobs, or using a tool — it should check a reliably stored stopped flag. Set up its stop behaviour before it begins working.
+- **Verify (the behavioural test):** Hit stop while a queued job is running. No new step should start after the stop takes effect — not even if the agent is restarted.
 - **Provable from:** `code`
 - **Evidence to look for:**
   - The durable stop state checked before each step, retry, queue consumption, and tool call; signal handlers registered before work starts.
@@ -35,8 +37,8 @@ Priority checks (★) carry double weight in the score.
 
 ### `shutdown/enforced-limits` — Set enforceable runtime limits
 
-- **Action (what good looks like):** Configure step, error, elapsed-time, and spend limits in the supervisor; assign owners and explicit escalation behavior for breached limits.
-- **Verify (the behavioural test):** Trigger each limit in staging. Further dispatch must stop within the documented deadline, with a reason recorded for the operator.
+- **Action (what good looks like):** Set firm ceilings in the supervising system on how many steps the agent can take, how many errors it can hit, how long it can run, and how much it can spend. Give each limit an owner and a clear plan for what happens when it is reached.
+- **Verify (the behavioural test):** In a test environment, push past each limit in turn. The agent should stop taking on new work within your committed deadline, and record the reason for the operator.
 - **Provable from:** `code`
 - **Evidence to look for:**
   - Hard limits on steps/iterations, errors, wall time, tokens, and spend (e.g. max_iterations, recursion_limit, budget/quota/rate limits) that stop dispatch.
@@ -46,8 +48,8 @@ Priority checks (★) carry double weight in the score.
 
 ### `shutdown/cancel-inflight` — Propagate cancellation and track in-flight work
 
-- **Action (what good looks like):** Pass cancellation to tools and workers, set deadlines, and inventory providers that cannot cancel an accepted request.
-- **Verify (the behavioural test):** Stop during a slow tool call and a non-cancellable request. Cancel the former; track the latter to a confirmed or explicitly unknown outcome.
+- **Action (what good looks like):** When you stop, pass the cancellation on to every tool and background worker, set deadlines for them to wind down, and keep a list of outside services that cannot cancel a request once they have accepted it.
+- **Verify (the behavioural test):** Hit stop during a slow tool call and during a request that cannot be called back. The slow one should be cancelled; the uncancellable one should be followed until you know its result or have clearly marked it unknown.
 - **Provable from:** `code`
 - **Evidence to look for:**
   - Cancellation tokens/signals and deadlines passed to tools and workers; tracking of non-cancellable requests to an outcome.
@@ -57,8 +59,8 @@ Priority checks (★) carry double weight in the score.
 
 ### ★ `shutdown/authority-revocation` — Revoke authority through the supervisor
 
-- **Action (what good looks like):** Revoke instance credentials and pending approvals before best-effort application cleanup; bound residual token validity when immediate revocation is unavailable.
-- **Verify (the behavioural test):** Kill the process without running its handlers. Saved credentials and approvals must become unusable within the documented revocation bound.
+- **Action (what good looks like):** When stopping, first cancel the agent's access keys and any approvals it has not used yet, before attempting any tidy-up. If you cannot cancel access instantly, make sure it expires quickly on its own.
+- **Verify (the behavioural test):** Kill the agent abruptly, with no chance to tidy up. Any access keys or approvals it had saved should stop working within the time limit you committed to.
 - **Provable from:** `code`
 - **Evidence to look for:**
   - Stop procedure that revokes or disables the agent's credentials and invalidates pending approvals.
@@ -68,8 +70,8 @@ Priority checks (★) carry double weight in the score.
 
 ### `shutdown/bounded-cleanup` — Make cleanup repeatable and time-bounded
 
-- **Action (what good looks like):** Implement idempotent cleanup steps with independent deadlines and escalation; prevent one hanging step from blocking revocation or incident notification.
-- **Verify (the behavioural test):** Invoke shutdown twice and hang one cleanup dependency. The procedure must reach its deadline, preserve stop state, and report unfinished work.
+- **Action (what good looks like):** Make each tidy-up step safe to run more than once, give each its own deadline and fallback, and make sure one stuck step cannot hold up cancelling access or alerting people to the incident.
+- **Verify (the behavioural test):** Trigger shutdown twice and make one tidy-up step hang. The process should still hit its deadline, stay stopped, and report what it could not finish.
 - **Provable from:** `code`
 - **Evidence to look for:**
   - Idempotent cleanup steps with individual deadlines that cannot block revocation or notification.
@@ -79,8 +81,9 @@ Priority checks (★) carry double weight in the score.
 
 ### `shutdown/reconcile-incident` — Reconcile effects and notify an owner
 
-- **Action (what good looks like):** Compare in-flight work with ledger intents and tool receipts; list completed, failed, and unknown effects with an assigned incident owner and remediation plan.
-- **Verify (the behavioural test):** Stop immediately after a test side effect. The incident report must include it even if the agent never appended its outcome.
+- **Action (what good looks like):** Compare what was underway when you stopped against the planned actions in the Ledger and the tools' own receipts. List what finished, what failed, and what is unknown, and assign an incident owner with a plan to put things right.
+- **Verify (the behavioural test):** Stop right after a test action takes effect. The incident report should still include that action, even if the agent never got to record how it turned out.
+- **Applies only when:** `consequential` (consequential actions) is true.
 - **Provable from:** `code`
 - **Evidence to look for:**
   - After a stop: compare in-flight work with ledger intents and receipts, list completed/failed/unknown effects, and notify an owner.
@@ -90,8 +93,8 @@ Priority checks (★) carry double weight in the score.
 
 ### `shutdown/controlled-restart` — Drill termination and deliberate recovery
 
-- **Action (what good looks like):** Exercise graceful stop, hard kill, network loss, and supervisor restart; require an authorized recovery decision and fresh scoped credentials before resuming.
-- **Verify (the behavioural test):** The agent must stay stopped across each restart. After authorized recovery, old credentials, approvals, and queued work must not silently resume.
+- **Action (what good looks like):** Practise every kind of stop: a clean shutdown, an abrupt kill, a lost connection, and a supervisor restart. Before the agent runs again, require a person to authorise the restart and issue new, limited access keys.
+- **Verify (the behavioural test):** The agent should stay stopped through each of these. Once someone authorises recovery, its old access keys, old approvals, and queued-up work should not quietly start running again.
 - **Provable from:** `process`
 - **Evidence to look for:**
   - Tests/runbooks for graceful stop, hard kill, and restart; the agent stays stopped until an authorized recovery with fresh credentials.

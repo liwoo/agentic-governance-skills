@@ -10,9 +10,12 @@ const STATUS_WORD = {
   partial: "Partial",
   present: "Present",
   unknown: "Unknown",
-  not_applicable: "N/A",
+  not_applicable: "Not relevant",
+  not_relevant: "Not relevant",
 };
+// Checks ruled out by the profile and checks the assessor marked not applicable read the same way.
 const STATUS_ORDER = ["missing", "partial", "present", "unknown", "not_applicable"];
+const cellClass = (status) => (status === "not_relevant" ? "not_applicable" : status);
 const FIX_LIMIT = 10;
 const GROUPS = [
   { severity: "critical", title: "Fix now", note: "These gaps let a consequential action go wrong today." },
@@ -71,21 +74,41 @@ function verdict(report, scored, index) {
 }
 
 function tally(counts) {
-  return STATUS_ORDER.filter((s) => counts[s])
-    .map((s) => `${counts[s]} ${s === "not_applicable" ? "not applicable" : STATUS_WORD[s].toLowerCase()}`)
+  const merged = { ...counts, not_applicable: (counts.not_applicable ?? 0) + (counts.not_relevant ?? 0) };
+  return STATUS_ORDER.filter((s) => merged[s])
+    .map((s) => `${merged[s]} ${STATUS_WORD[s].toLowerCase()}`)
     .join(", ");
+}
+
+// "it only returns text…" for the traits that ruled something out.
+function whyNot(because, catalog) {
+  return because.map((id) => catalog.traits.find((t) => t.id === id).whenFalse).join(", and ");
+}
+
+function profileBlock(report, catalog, linkBase) {
+  const traits = report.profile?.traits ?? {};
+  const rows = catalog.traits
+    .map((t) => {
+      const a = traits[t.id] ?? {};
+      const where = a.evidence?.[0] ? ` ${location(a.evidence[0], linkBase)}` : "";
+      return `<tr><th scope="row">${esc(t.label)}</th><td class="answer ${a.value ? "yes" : "no"}">${a.value ? "Yes" : "No"}</td><td>${rich(a.reason)}${where}</td></tr>`;
+    })
+    .join("");
+  return `<table class="profile"><tbody>${rows}</tbody></table>`;
 }
 
 export function renderHtml(report, scored, { linkBase } = {}) {
   const catalog = loadCatalog();
   const index = checkIndex(catalog);
-  const byId = new Map(report.checks.map((c) => [c.id, c]));
+  const notRelevant = new Map(scored.notRelevant.map((x) => [x.id, x.because]));
+  const byId = new Map(report.checks.filter((c) => !notRelevant.has(c.id)).map((c) => [c.id, c]));
+  const statusOf = (id) => (notRelevant.has(id) ? "not_relevant" : byId.get(id).status);
   const roomScore = new Map(scored.rooms.map((r) => [r.id, r]));
   const roomById = new Map(catalog.rooms.map((r) => [r.id, r]));
   const project = report.project;
   const assessed = report.assessedAt ? new Date(report.assessedAt) : new Date();
   const date = assessed.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
-  const total = report.checks.length;
+  const skipped = scored.notRelevant.length + (scored.overall.counts.not_applicable ?? 0);
 
   const meta = [date, project.commit ? `commit <code>${esc(String(project.commit).slice(0, 12))}</code>` : "", report.assessor ? esc(report.assessor) : ""]
     .filter(Boolean)
@@ -97,32 +120,33 @@ export function renderHtml(report, scored, { linkBase } = {}) {
       const s = roomScore.get(room.id);
       const cells = room.checks
         .map((check) => {
-          const status = byId.get(check.id).status;
+          const status = statusOf(check.id);
           const label = `${check.title}: ${STATUS_WORD[status].toLowerCase()}`;
-          return `<a class="cell c-${status}" href="#${esc(check.id)}" title="${esc(label)}"><span class="sr">${esc(label)}</span></a>`;
+          return `<a class="cell c-${cellClass(status)}" href="#${esc(check.id)}" title="${esc(label)}"><span class="sr">${esc(label)}</span></a>`;
         })
         .join("");
       return `<div class="grid-row">
         <a class="grid-room" href="#${room.id}"><b>${esc(room.short)}</b><span>${esc(room.title)}</span></a>
         <div class="cells">${cells}</div>
         <span class="grid-score">${s.score ?? "–"}</span>
-        <span class="grid-tally">${tally(s.counts)}</span>
+        <span class="grid-tally">${s.applies ? tally(s.counts) : "Not relevant to this agent"}</span>
       </div>`;
     })
     .join("");
 
-  const legend = STATUS_ORDER.map((s) => `<span><i class="cell c-${s}" aria-hidden="true"></i>${s === "not_applicable" ? "Not applicable" : STATUS_WORD[s]}</span>`).join("");
+  const legend = STATUS_ORDER.map((s) => `<span><i class="cell c-${s}" aria-hidden="true"></i>${STATUS_WORD[s]}</span>`).join("");
 
-  const actions = (report.consequentialActions ?? []).length
-    ? `<section class="block">
-        <h2>What the agent can do</h2>
-        <table class="actions"><tbody>${report.consequentialActions
-          .map(
-            (a) => `<tr><th scope="row"><code>${esc(a.name)}</code></th><td class="effect">${esc(a.effect ?? "")}</td><td>${a.location ? `<code>${esc(a.location)}</code>` : ""}</td><td>${rich(a.note ?? "")}</td></tr>`,
-          )
-          .join("")}</tbody></table>
-      </section>`
-    : "";
+  const actionRows = (report.consequentialActions ?? [])
+    .map(
+      (a) => `<tr><th scope="row"><code>${esc(a.name)}</code></th><td class="effect">${esc(a.effect ?? "")}</td><td>${a.location ? `<code>${esc(a.location)}</code>` : ""}</td><td>${rich(a.note ?? "")}</td></tr>`,
+    )
+    .join("");
+  const actions = `<section class="block">
+      <h2>What the agent can do</h2>
+      <p class="note">These answers decide which checks apply. A check this agent has no use for is left out of the score.</p>
+      ${profileBlock(report, catalog, linkBase)}
+      ${actionRows ? `<h3 class="sub">Actions with real-world effects</h3><table class="actions"><tbody>${actionRows}</tbody></table>` : ""}
+    </section>`;
 
   // Fix list: the first FIX_LIMIT gaps in fix order, grouped by severity.
   const shown = scored.fixOrder.slice(0, FIX_LIMIT);
@@ -168,7 +192,28 @@ export function renderHtml(report, scored, { linkBase } = {}) {
   const rooms = catalog.rooms
     .map((room) => {
       const s = roomScore.get(room.id);
+      const head = `<header class="room-head">
+          <h2>${esc(room.short)}</h2>
+          <p class="room-sub">${esc(room.title)}. ${esc(room.question)}</p>
+          <p class="room-score">${s.applies ? `<b>${s.score ?? "–"}</b> / 100` : "<b>–</b>"}</p>
+        </header>`;
+      if (!s.applies) {
+        return `<section class="room is-skipped" id="${room.id}">${head}
+          <p class="skip-note"><b>Not relevant to this agent:</b> ${esc(whyNot(s.because, catalog))}. If that changes, these ${room.checks.length} checks start to apply.</p>
+        </section>`;
+      }
+      // Checks the profile rules out, grouped by the reason.
+      const ruledOut = new Map();
+      for (const check of room.checks) {
+        if (!notRelevant.has(check.id)) continue;
+        const why = whyNot(notRelevant.get(check.id), catalog);
+        ruledOut.set(why, [...(ruledOut.get(why) ?? []), check]);
+      }
+      const skipNotes = [...ruledOut]
+        .map(([why, checks]) => `<p class="skip-note"><b>Not relevant here</b> because ${esc(why)}: ${checks.map((c) => `<span id="${esc(c.id)}">${esc(c.title)}</span>`).join(", ")}.</p>`)
+        .join("");
       const rows = room.checks
+        .filter((check) => !notRelevant.has(check.id))
         .map((check) => {
           const entry = byId.get(check.id);
           const severity = ["missing", "partial"].includes(entry.status) ? severityOf(entry, check) : null;
@@ -195,12 +240,9 @@ export function renderHtml(report, scored, { linkBase } = {}) {
         .join("");
       const companions = room.limitation.companions.map((c) => roomById.get(c.roomId).short).join(", ");
       return `<section class="room" id="${room.id}">
-        <header class="room-head">
-          <h2>${esc(room.short)}</h2>
-          <p class="room-sub">${esc(room.title)}. ${esc(room.question)}</p>
-          <p class="room-score"><b>${s.score ?? "–"}</b> / 100</p>
-        </header>
+        ${head}
         ${rows}
+        ${skipNotes}
         <p class="limit"><b>Even when every check passes:</b> ${esc(room.limitation.title.replace(/\.$/, ""))}. Pair it with ${esc(companions)}.</p>
       </section>`;
     })
@@ -226,7 +268,7 @@ export function renderHtml(report, scored, { linkBase } = {}) {
 
   <section class="verdict">
     <p class="headline">${verdict(report, scored, index)}</p>
-    <p class="subline">Score ${scored.overall.score ?? "–"} out of 100 (${esc(scored.overall.band.label.toLowerCase())}). ${tally(scored.overall.counts)}, across ${total} checks.</p>
+    <p class="subline">Score ${scored.overall.score ?? "–"} out of 100 (${esc(scored.overall.band.label.toLowerCase())}) across the ${scored.overall.applicable} checks that apply to this agent: ${tally({ ...scored.overall.counts, not_applicable: 0, not_relevant: 0 })}.${skipped ? ` ${plural(skipped, "check doesn’t", "checks don’t")} apply and ${skipped === 1 ? "isn’t" : "aren’t"} scored.` : ""}</p>
   </section>
 
   <section class="block house" aria-label="Condition of each room">
@@ -249,7 +291,7 @@ export function renderHtml(report, scored, { linkBase } = {}) {
   <footer>
     ${(report.notes ?? []).length ? `<h3>Assessor’s notes</h3><ul>${report.notes.map((x) => `<li>${rich(x)}</li>`).join("")}</ul>` : ""}
     <h3>How this was scored</h3>
-    <p>The assessor read the code, tests and config and recorded what they could find. Nothing was run. Present scores 1, partial ½, missing and unknown 0; not applicable is left out. Checks marked ×2 count double. Severity sets the fix order and doesn’t change the score.</p>
+    <p>The assessor read the code, tests and config and recorded what they could find. Nothing was run. The profile at the top decides which checks apply; the rest are left out of the score. Present scores 1, partial ½, missing and unknown 0. Checks marked ×2 count double. Severity sets the fix order and doesn’t change the score.</p>
     <p>${esc(catalog.scope)}</p>
     <p class="colophon">agent-governance-scorecard · catalogue ${esc(scored.catalogVersion)}</p>
   </footer>
@@ -326,6 +368,17 @@ a.cell:hover{outline:2px solid var(--ink);outline-offset:1px}
 .actions tr:last-child th,.actions tr:last-child td{border-bottom:1px solid var(--rule)}
 .actions th{font-weight:400;white-space:nowrap}
 .actions .effect{font:14px var(--label);color:var(--graphite)}
+.profile{width:100%;border-collapse:collapse;font-size:15px;margin-bottom:8px}
+.profile th,.profile td{padding:9px 14px 9px 0;border-top:1px solid var(--rule);text-align:left;vertical-align:baseline}
+.profile tr:last-child th,.profile tr:last-child td{border-bottom:1px solid var(--rule)}
+.profile th{font:15px var(--label);font-weight:400;white-space:nowrap;width:1%}
+.profile .answer{font:15px var(--label);width:1%;white-space:nowrap}
+.profile .yes{color:var(--ink)}.profile .no{color:var(--graphite)}
+.profile code{color:var(--graphite)}
+.sub{font:18px var(--label);margin:28px 0 8px}
+.skip-note{margin:14px 0 0;font-size:15px;color:var(--graphite)}
+.room.is-skipped .room-head{border-bottom-color:var(--rule)}
+.room.is-skipped .room-head h2,.room.is-skipped .room-score b{color:var(--graphite)}
 
 .fix-group{margin-top:28px}
 .fix-group h3{font:20px var(--label);padding-bottom:6px;border-bottom:1px solid var(--ink)}

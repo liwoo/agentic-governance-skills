@@ -7,14 +7,16 @@ Ordinary tools stay available. Consequential actions remain locked until a human
 
 **Risks it addresses:** A hallucination becomes an irreversible action; Prompt injection reaches a dangerous tool; Broad approvals become reusable master keys.
 
+**Applies when:** `consequential` (consequential actions) is true.
+
 ## Checks
 
 Priority checks (★) carry double weight in the score.
 
 ### `permission/capability-policy` — Inventory and classify executable capabilities
 
-- **Action (what good looks like):** Create a tool/action matrix listing risk, allowed destinations, required reviewer role, and deny-by-default behavior for unknown actions.
-- **Verify (the behavioural test):** Register an unclassified tool or destination. Execution must remain blocked until its policy is explicitly defined.
+- **Action (what good looks like):** Make a table of every tool and action the agent can perform. For each, note how risky it is, where it is allowed to reach, who must approve it, and — for anything not on the list — set the default answer to no.
+- **Verify (the behavioural test):** Add a new tool or destination that has not been classified yet. The agent should not be able to use it until someone has written down the rules for it.
 - **Provable from:** `code`
 - **Evidence to look for:**
   - An explicit registry of tools/actions with risk level, allowed destinations, and required approval.
@@ -25,8 +27,8 @@ Priority checks (★) carry double weight in the score.
 
 ### ★ `permission/execution-boundary` — Enforce policy where the side effect occurs
 
-- **Action (what good looks like):** Put authorization in the tool gateway or receiving service; remove direct credentials and restrict egress that could bypass it.
-- **Verify (the behavioural test):** Attempt the same dangerous action through the normal tool, a raw SDK, and a direct HTTP request. All paths must enforce the policy.
+- **Action (what good looks like):** Enforce the rules at the point where the action actually takes effect — in the gateway the agent passes through, or in the service receiving the request. Remove any direct access keys and block any route out that would skip the gateway.
+- **Verify (the behavioural test):** Try the same risky action three ways: through the normal tool, through a direct code call, and through a direct web request. All three should be stopped by the same rules.
 - **Provable from:** `code`
 - **Evidence to look for:**
   - Authorization enforced inside the tool wrapper, gateway, or receiving service — where the side effect happens.
@@ -38,8 +40,9 @@ Priority checks (★) carry double weight in the score.
 
 ### ★ `permission/exact-request-binding` — Bind approval to the complete action
 
-- **Action (what good looks like):** Canonicalize and sign the operation, target, arguments, instance/session, request ID, and expiry; include relevant resource version or preconditions.
-- **Verify (the behavioural test):** Change an amount, recipient, argument, or resource version after approval. Execution must reject the mismatch and request fresh approval.
+- **Action (what good looks like):** Tie each approval to the exact action it is for: what is being done, to what, with which details, by which agent and task, under which request, and until when. Lock that down with a signature, and include the version of whatever is being changed so a later change breaks the match.
+- **Verify (the behavioural test):** After something is approved, change one detail — the amount, the recipient, a setting, or the version of what is being changed. The agent should see it no longer matches the approval, refuse to proceed, and ask for a fresh approval.
+- **Applies only when:** `unreviewed_consequential` (consequential actions without review) is true.
 - **Provable from:** `code`
 - **Evidence to look for:**
   - Approvals bound to the exact operation and arguments (canonical hash of tool + args), target, session, and expiry; mismatch is rejected.
@@ -49,8 +52,8 @@ Priority checks (★) carry double weight in the score.
 
 ### `permission/human-review-context` — Build a review screen that supports refusal
 
-- **Action (what good looks like):** Show the exact proposed change, supporting evidence, uncertainty, and consequences to an authenticated, authorized reviewer; offer a clear deny action.
-- **Verify (the behavioural test):** An unauthorized reviewer cannot approve. An authorized reviewer can inspect the change and deny it without a side effect occurring.
+- **Action (what good looks like):** Give the approver a screen showing exactly what the agent wants to do, the evidence behind it, how confident it is, and what the consequences would be. Make sure that person is who they say they are and is allowed to decide, and give them an obvious way to say no.
+- **Verify (the behavioural test):** Someone without permission should not be able to approve at all. Someone with permission should be able to review the request and reject it — and nothing should happen as a result of rejecting it.
 - **Provable from:** `code`
 - **Evidence to look for:**
   - An approval UI/message showing the exact action, arguments, evidence, and consequences, with a clear deny, restricted to authorized reviewers.
@@ -60,8 +63,9 @@ Priority checks (★) carry double weight in the score.
 
 ### ★ `permission/atomic-consumption` — Consume approvals atomically
 
-- **Action (what good looks like):** Store approval state outside the agent, enforce short expiry, and atomically reserve or consume it; use an execution idempotency key for retries.
-- **Verify (the behavioural test):** Submit the same approval concurrently, then replay it after a timeout. At most one side effect may occur; expired approvals must fail.
+- **Action (what good looks like):** Keep track of approvals somewhere the agent cannot tamper with, make them expire quickly, and make sure each approval can only be spent once even if two attempts arrive at the same moment. Tag retries so a repeated attempt cannot act twice.
+- **Verify (the behavioural test):** Use the same approval twice at once, then try to reuse it again after it has expired. At most one action should actually happen, and the expired one should fail.
+- **Applies only when:** `unreviewed_consequential` (consequential actions without review) is true.
 - **Provable from:** `code`
 - **Evidence to look for:**
   - Approval state stored outside the agent (DB/cache) with short expiry, consumed atomically (compare-and-set / unique nonce / jti), plus an execution idempotency key.
@@ -71,8 +75,8 @@ Priority checks (★) carry double weight in the score.
 
 ### `permission/review-load` — Design and measure the review workload
 
-- **Action (what good looks like):** Define which consequential actions require review, queue ownership, capacity limits, and escalation; keep low-risk work within bounded policy instead of prompting indiscriminately.
-- **Verify (the behavioural test):** Load-test the approval queue with representative reviewers. Overload must hold or escalate work, never silently approve it; record volume, delay, and decision quality.
+- **Action (what good looks like):** Decide which serious actions truly need a person to approve them, who handles the approval queue, how much they can handle, and what happens when it is too much. Let low-risk work proceed within set limits instead of asking a person about everything.
+- **Verify (the behavioural test):** Flood the approval queue with a realistic number of requests and reviewers. When it is overwhelmed, work should wait or be passed up the chain — never get waved through automatically. Track how much came in, how long it waited, and how good the decisions were.
 - **Provable from:** `process`
 - **Evidence to look for:**
   - Policy on which actions need review vs bounded autonomy, queue ownership, escalation, and handling when reviewers are overloaded.
@@ -82,8 +86,9 @@ Priority checks (★) carry double weight in the score.
 
 ### `permission/authorization-evidence` — Record the authorization lifecycle
 
-- **Action (what good looks like):** Link each proposal, human decision, token consumption, denial, and execution outcome in the ledger using one action ID and verified identities.
-- **Verify (the behavioural test):** For an approved action and a rejected replay, reconstruct who decided, what was authorized, and what actually executed without storing the bearer approval token.
+- **Action (what good looks like):** In the Ledger, connect every stage of an approval — the request, the person's decision, the approval being used, any refusal, and the final result — under one shared action ID and with confirmed identities.
+- **Verify (the behavioural test):** Take one approved action and one rejected repeat attempt, and from the records alone work out who decided, what they allowed, and what actually happened — without the records having stored the approval pass itself.
+- **Applies only when:** `unreviewed_consequential` (consequential actions without review) is true.
 - **Provable from:** `code`
 - **Evidence to look for:**
   - Proposal, decision (who/when), token consumption, denial, and execution outcome recorded under one action ID.
@@ -93,8 +98,9 @@ Priority checks (★) carry double weight in the score.
 
 ### `permission/bad-approval-drill` — Test containment after a mistaken approval
 
-- **Action (what good looks like):** In staging, approve a bounded harmful test action, trigger the independent stop, and follow the documented compensation or incident process.
-- **Verify (the behavioural test):** New work must stop, credentials must be revoked within the defined deadline, and the ledger must identify completed effects requiring remediation.
+- **Action (what good looks like):** In a safe test environment, deliberately approve a limited harmful test action, then trigger the independent stop and follow your written plan for undoing the damage and handling the incident.
+- **Verify (the behavioural test):** New work should halt, the agent's access should be cut off within your committed deadline, and the Ledger should show which effects already went through and need fixing.
+- **Applies only when:** `unreviewed_consequential` (consequential actions without review) is true.
 - **Provable from:** `process`
 - **Evidence to look for:**
   - A test or runbook that approves a bounded harmful test action, then triggers stop and compensation.

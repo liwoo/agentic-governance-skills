@@ -7,14 +7,16 @@ Every external action creates an intent before execution and a protected outcome
 
 **Risks it addresses:** Unrecorded actions cannot be investigated; Logging afterward leaves a crash-sized gap; Mutable history cannot serve as evidence.
 
+**Applies when:** `acts` (takes actions) is true.
+
 ## Checks
 
 Priority checks (★) carry double weight in the score.
 
 ### `ledger/event-contract` — Define a versioned action-event schema
 
-- **Action (what good looks like):** Specify action ID, event type, verified identities, timestamps, policy and build versions, redacted inputs, decision evidence, and outcome references.
-- **Verify (the behavioural test):** Validate sample intent, success, failure, and unknown-outcome events against the schema. Missing correlation or identity fields must be rejected.
+- **Action (what good looks like):** Agree one fixed format for every recorded event, and give the format a version: the shared action ID, what kind of event it is, the confirmed identities, the times, which rules and agent version applied, the inputs with sensitive parts removed, the evidence behind the decision, and a link to the result.
+- **Verify (the behavioural test):** Check sample records — a plan, a success, a failure, and an unknown result — against that format. Any record missing its linking ID or its identity details should be refused.
 - **Provable from:** `code`
 - **Evidence to look for:**
   - A versioned schema for action events: action ID, event type, verified identities, timestamps, policy/build versions, redacted inputs, outcome references.
@@ -24,8 +26,9 @@ Priority checks (★) carry double weight in the score.
 
 ### ★ `ledger/durable-intent` — Acknowledge durable intent before execution
 
-- **Action (what good looks like):** Place a durable intent write ahead of each governed external side effect; hold the action when the ledger cannot acknowledge that write.
-- **Verify (the behavioural test):** Make storage unavailable before the intent acknowledgment. The external action must not execute.
+- **Action (what good looks like):** Before the agent changes anything in the outside world, write down what it is about to do and make sure that record is safely saved. If the record cannot be saved, hold the action.
+- **Verify (the behavioural test):** Take the record store offline just before the agent records its intent. With no way to save that record, the outside action should not happen.
+- **Applies only when:** `consequential` (consequential actions) is true.
 - **Provable from:** `code`
 - **Evidence to look for:**
   - An intent record written and acknowledged before each consequential external call; the call is held if the write fails (write-ahead / outbox pattern).
@@ -35,8 +38,9 @@ Priority checks (★) carry double weight in the score.
 
 ### ★ `ledger/outcome-reconciliation` — Reconcile incomplete and ambiguous outcomes
 
-- **Action (what good looks like):** Append outcomes under the same action ID; set a deadline for unresolved intents and use tool receipts or idempotency keys to reconcile them safely.
-- **Verify (the behavioural test):** Crash after the external write but before the outcome append. Recovery must identify the actual result or mark it unknown without blindly repeating the effect.
+- **Action (what good looks like):** Record each result under the same action ID as its plan. Set a deadline for plans that never got a recorded result, and use the tool's own receipts, or a one-time tag, to work out what really happened without redoing it.
+- **Verify (the behavioural test):** Make the agent crash right after it acts on the outside world but before it records the result. On recovery it should find out what actually happened, or mark it unknown — not just blindly do it again.
+- **Applies only when:** `consequential` (consequential actions) is true.
 - **Provable from:** `code`
 - **Evidence to look for:**
   - Outcomes appended under the same action ID, including `unknown`; a reconciler for stale intents using provider receipts or idempotency keys.
@@ -46,8 +50,8 @@ Priority checks (★) carry double weight in the score.
 
 ### `ledger/write-access-boundary` — Separate append, read, and administration rights
 
-- **Action (what good looks like):** Deny the agent update/delete access, isolate storage administration, and enforce approved retention controls on the evidence store.
-- **Verify (the behavioural test):** Try to alter and delete an existing event as the agent and as a reader. Both must fail; authorized administrative changes must be auditable.
+- **Action (what good looks like):** Let the agent add records but never change or delete them. Keep the ability to manage the record store separate, and apply your agreed rules for how long records are kept.
+- **Verify (the behavioural test):** Try to change and delete an existing record, both as the agent and as someone with read-only access. Both should fail — and any legitimate administrative change should itself leave a traceable record.
 - **Provable from:** `code`
 - **Evidence to look for:**
   - Append-only storage or permissions: the agent cannot update/delete records; admin and read rights separated; retention configured.
@@ -57,8 +61,9 @@ Priority checks (★) carry double weight in the score.
 
 ### ★ `ledger/independent-integrity` — Anchor integrity outside the writer’s control
 
-- **Action (what good looks like):** Hash-link events and periodically sign or checkpoint chain roots into a separately controlled store; document the interval and unanchored-tail exposure.
-- **Verify (the behavioural test):** Alter, remove, or reorder an anchored event, then rewrite the local chain. Verification against the independent checkpoint must detect the inconsistency.
+- **Action (what good looks like):** Chain the records together so each one seals the one before it, and regularly save a tamper-proof summary to a separate store the writer cannot control. Write down how often you do this and how much recent activity is not yet protected between saves.
+- **Verify (the behavioural test):** Change, delete, or reorder a record that has already been protected, then rebuild the local chain to hide it. Comparing against the separate saved summary should reveal that it no longer matches.
+- **Applies only when:** `consequential` (consequential actions) is true.
 - **Provable from:** `code`
 - **Evidence to look for:**
   - Hash-chained events with periodic checkpoints or signatures anchored in a separately controlled store (e.g. a confidential/immutable ledger).
@@ -68,8 +73,8 @@ Priority checks (★) carry double weight in the score.
 
 ### `ledger/data-minimization` — Set redaction, access, and retention rules
 
-- **Action (what good looks like):** Allowlist necessary fields, redact secrets before persistence, restrict readers, and define expiry/deletion handling with privacy and security owners.
-- **Verify (the behavioural test):** Inject a test secret and personal-data marker. Forbidden values must not persist; test reader isolation and the approved retention workflow.
+- **Action (what good looks like):** Record only the fields you actually need, strip out secrets before saving, limit who can read the records, and — with your privacy and security owners — set rules for when records expire or are deleted.
+- **Verify (the behavioural test):** Plant a fake secret and a marker standing in for personal data. Neither should end up stored. Also check that readers only see what they are allowed to, and that the deletion-and-expiry process works.
 - **Provable from:** `code`
 - **Evidence to look for:**
   - Field allowlists or redaction before persistence/telemetry; secrets and PII scrubbed; retention rules.
@@ -79,8 +84,8 @@ Priority checks (★) carry double weight in the score.
 
 ### `ledger/investigation-query` — Make one action reconstructable
 
-- **Action (what good looks like):** Provide an investigation query joining identity, intent, approval or clarification, execution receipt, and outcome; separate observed facts from model-provided reasons.
-- **Verify (the behavioural test):** Give a reviewer an action ID. They must retrieve the complete linked history and identify missing evidence without treating a generated rationale as proof.
+- **Action (what good looks like):** Build a way to pull together, for a single action, who did it, what was planned, any approval or clarification, proof that it ran, and the result. Keep what was actually observed clearly separate from the reasons the AI gave.
+- **Verify (the behavioural test):** Hand a reviewer one action ID. They should be able to pull up its full connected history and spot anything missing — without mistaking the AI's own explanation for proof of what happened.
 - **Provable from:** `code`
 - **Evidence to look for:**
   - A query, script, or tool that reconstructs one action by ID across identity, intent, approval/clarification, execution receipt, and outcome.
@@ -90,8 +95,8 @@ Priority checks (★) carry double weight in the score.
 
 ### `ledger/evidence-failure-drill` — Exercise evidence failure across the controls
 
-- **Action (what good looks like):** Define owners and alerts for aged intents, integrity failures, and verification outages; connect critical evidence failures to a hold or supervised stop.
-- **Verify (the behavioural test):** Inject a broken checkpoint or overdue intent in staging. Confirm the alert, preserved evidence, assigned investigation, and the configured hold or stop.
+- **Action (what good looks like):** Assign owners and alerts for records that have waited too long for a result, signs of tampering, and outages in the checks themselves. Connect the serious failures to pausing the agent or stopping it under supervision.
+- **Verify (the behavioural test):** In a test environment, plant a broken tamper-proof summary, or a plan that never got its result in time. Confirm the alert fires, the evidence is kept, someone is assigned to investigate, and the agent pauses or stops as configured.
 - **Provable from:** `process`
 - **Evidence to look for:**
   - Alerts on aged intents, integrity failures, or ledger outages, wired to a hold or stop.
