@@ -1,0 +1,25 @@
+{
+  "name": "agent-governance-scorecard",
+  "version": "0.1.0",
+  "description": "Score an AI agent codebase against the Governance House's six safeguards and get a JSON + HTML report with concrete fixes.",
+  "type": "module",
+  "license": "MIT",
+  "author": "Jeremiah Chienda",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/liwoo/agentic-governance-skills.git"
+  },
+  "keywords": ["ai-agents", "governance", "agent-skills", "responsible-ai", "scorecard", "skills"],
+  "bin": {
+    "agent-governance-scorecard": "skills/agent-governance-scorecard/scripts/scorecard.mjs"
+  },
+  "files": ["skills/"],
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "build:catalog": "node tools/catalog/build.mjs",
+    "check:catalog": "node tools/catalog/build.mjs --check",
+    "test": "node --test tests/*.test.mjs"
+  }
+}

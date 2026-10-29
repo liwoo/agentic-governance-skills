@@ -1,0 +1,19 @@
+name: scorecard skill
+
+on:
+  pull_request:
+    paths: ["skills/**", "tools/catalog/**", "tests/**", "examples/**", "sites/governance-house/src/data/**", "package.json"]
+  push:
+    branches: [master]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      # Fails when the site's checks change without regenerating the skill's catalogue.
+      - run: npm run check:catalog
+      - run: npm test
