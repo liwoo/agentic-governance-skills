@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import coverArtwork from "../assets/governance-cover.png";
+import CoverArt from "./CoverArt.jsx";
 import speakingQr from "../assets/speaking-qr.svg";
 import "./CoverSlide.css";
 
@@ -23,21 +23,20 @@ export default function CoverSlide({ onEnter, closing = false, onBack }) {
 
   return (
     <main className={`cover-slide${closing ? " cover-closing" : ""}`} aria-labelledby="cover-title" onKeyDown={advance}>
-      <img className="cover-artwork" src={coverArtwork} alt="A metallic humanoid robot overlooking an abandoned, crumbling city beneath a gold and sage sky." fetchPriority="high" />
-      <div className="cover-shade" aria-hidden="true" />
-
       <div className="cover-topline">
-        <span className="cover-series"><i aria-hidden="true" />The Governance House</span>
+        <span className="cover-series"><span className="brand-cube" aria-hidden="true"><i /><i /><i /></span>The Governance House</span>
         <span className="cover-category">Agentic AI / shared responsibility</span>
       </div>
 
-      <div className="cover-heading">
-        <span className="cover-rule" aria-hidden="true" />
-        <h1 id="cover-title" ref={heading} tabIndex={-1}>{closing ? <>Thank <em>you</em></> : <>You are the<br /><em>Governance</em><br />Layer</>}</h1>
-        {closing ? <a className="closing-qr" href="https://chienda.com/speaking" target="_blank" rel="noreferrer">
-          <img src={speakingQr} width="232" height="232" alt="QR code linking to https://chienda.com/speaking" />
-          <span>chienda.com/speaking <i aria-hidden="true">↗</i></span>
-        </a> : null}
+      <div className="cover-body">
+        <div className="cover-heading">
+          <h1 id="cover-title" ref={heading} tabIndex={-1}>{closing ? <>Thank <em>you</em></> : <>You are the<br /><em>Governance</em><br />Layer</>}</h1>
+          {closing ? <a className="closing-qr" href="https://chienda.com/speaking" target="_blank" rel="noreferrer">
+            <img src={speakingQr} width="232" height="232" alt="QR code linking to https://chienda.com/speaking" />
+            <span>chienda.com/speaking <i aria-hidden="true">↗</i></span>
+          </a> : null}
+        </div>
+        <CoverArt closing={closing} />
       </div>
 
       <footer className="cover-footer">
