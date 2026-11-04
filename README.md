@@ -124,6 +124,17 @@ npm test
 
 If you run it on your own agent and it gets something wrong (a missed control, a false alarm, a fix that doesn't fit your framework), please open an issue with the finding. Real-world misses are how the checks get sharper.
 
+### Releasing to npm
+
+The skill installs from GitHub (`npx skills add …`) and needs no release. The npm package only adds the `npx agent-governance-scorecard` command.
+
+```bash
+npm version patch          # bumps package.json and creates the matching v* tag
+git push --follow-tags     # .github/workflows/publish.yml checks, tests and publishes with provenance
+```
+
+The workflow publishes through npm trusted publishing, with no stored secret. For the very first release, before trusted publishing can be configured, it falls back to an `NPM_TOKEN` repository secret.
+
 ---
 
 Built by [Jeremiah Chienda](https://chienda.com/speaking). If your team is shipping agents that can touch money, data or customers, I'd love to hear what this finds.

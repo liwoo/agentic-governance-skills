@@ -1,0 +1,60 @@
+name: publish to npm
+
+# Publishes agent-governance-scorecard when a version tag is pushed:
+#   npm version patch && git push --follow-tags
+#
+# Auth, in order of preference:
+#   1. npm trusted publishing (OIDC): no stored secret, provenance is automatic.
+#      Configure it on npmjs.com → package → Settings → Trusted publishing
+#      (repo liwoo/agentic-governance-skills, workflow publish.yml). Needs the package to exist.
+#   2. An NPM_TOKEN repository secret (granular, publish-only), e.g. for the very first release.
+#      Delete it once trusted publishing is set up.
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+  id-token: write # OIDC for trusted publishing and provenance
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      # Trusted publishing needs npm CLI 11.5.1 or later.
+      - run: npm install -g npm@latest
+
+      - name: Tag matches package.json version
+        run: |
+          want="v$(node -p "require('./package.json').version")"
+          if [ "$GITHUB_REF_NAME" != "$want" ]; then
+            echo "::error::Tag $GITHUB_REF_NAME does not match package.json version ($want). Use npm version to bump both."
+            exit 1
+          fi
+
+      # Same gates as the PR workflow: the catalogue matches the site, and the tests pass.
+      - run: npm run check:catalog
+      - run: npm test
+
+      - name: Show what will ship
+        run: npm pack --dry-run
+
+      - name: Use NPM_TOKEN if one is set (otherwise trusted publishing)
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          if [ -n "$NPM_TOKEN" ]; then
+            echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN}" > ~/.npmrc
+            echo "Publishing with NPM_TOKEN."
+          else
+            echo "No NPM_TOKEN secret; publishing with trusted publishing (OIDC)."
+          fi
+
+      - run: npm publish --provenance --access public
